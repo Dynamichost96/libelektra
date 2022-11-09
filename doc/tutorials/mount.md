@@ -166,8 +166,8 @@ kdb set user:/example/enumtest/fruit apple
 #> Create a new key user:/example/enumtest/fruit with string "apple"
 ```
 
-By entering `kdb plugin-info type` in the commandline, we can find out how to use this plugin.
-It turns out that this plugin allows us to define a list of valid values for our keys via the metavalue `check/enum`.
+By entering `kdb plugin-info type` in the command line, we can find out how to use this plugin.
+It turns out that this plugin allows us to define a list of valid values for our keys via the meta value `check/enum`.
 
 ```sh
 kdb meta-set user:/example/enumtest/fruit check/enum "#2"

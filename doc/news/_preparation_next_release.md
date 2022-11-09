@@ -257,7 +257,7 @@ This section keeps you up-to-date with the multi-language support provided by El
 - Improve page for bindings _(@0x6178656c)_
 - <<TODO>>
 - documentation: fix some minor spelling mistakes in older releases-news _(@Dynamichost96)_
-- <<TODO>>
+- documentation: fix some minor spelling mistakes in doc/tutorials merge.md and mount.md _(@Dynamichost96)_
 - <<TODO>>
 - <<TODO>>
 - <<TODO>>
