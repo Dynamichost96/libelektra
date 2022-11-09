@@ -24,7 +24,7 @@ This works very similarly for KeySets, especially ones that consist of mounted c
 For mounted configuration files:
 
 - `ours` should be the user's copy
-- `theirs` would be the maintainers copy,
+- `theirs` would be the maintainer's copy,
 - `base` would be the previous version of the maintainer's copy.
 
 If the user is just trying to accomplish a three-way merge using any two arbitrary keysets that share a base,
