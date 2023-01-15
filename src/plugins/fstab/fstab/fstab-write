@@ -1,0 +1,2 @@
+/dev/sda6\s+/\s+jfs\s+defaults,errors=remount-ro\s+0\s+1
+/dev/sda10\s+none\s+swap\s+sw\s+0\s+0

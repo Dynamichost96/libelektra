@@ -1,0 +1,53 @@
+Some ideas which should be decided until 1.0
+
+
+== API Changes ==
+
+Avoid anything starting with _
+	_KDB, _KeySet, _Key typedefs
+
+remove elektraInvokeInitialize compatibility layer
+
+Single Interface: only get pointers, no memcopy (only one keyGetString, no
+	keyString)
+
+remove old metadata get/set
+
+size_t, ssize_t are not fixed size, use uint32_t.. to have no
+	problems on binary serialisation + unified behaviour (array sizes..)
+
+KEY_* -> ELEKTRA_KEY_* to avoid clashes
+	e.g. clash with KEY_MODE in “linux/input-event-codes.h”
+	consistently use singular (KEY_FLAGS -> KEY_FLAG)
+
+
+== TOOLS ==
+
+remove legacy configuration of the `kdb` tool
+	(% profile and /sw/kdb/ in src/tools/kdb/cmdline.cpp line 290-300)
+
+
+= FINISH for 1.0.0 =
+
+all exported methods of elektra need to be:
+	useful in current state
+	well documented in behavior
+	having test cases for behavior
+	behavior not overlapping with another function
+	well documented error cases and return values
+	having test cases for error cases
+	otherwise fix or mark it obsolete
+
+only exported symbols should be available
+Version info
+release
+minimize API -> (split core and convenience like libmetadata)
+
+added API evolution for all parts+declare every API stable+METADATA+CONTRACT stable
+
+make list of all symbols
+	exported symbols
+	reduce it hard
+	symbole, only export (otherwise static)
+	Version info 4.0
+

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<!--
+	This is the new hierarchical XML style that supports nested <key>s and
+	two new attributes: parent and basename, being
+	"parent" + "/" + "basename" = "name".
+	
+	The ksFromXML() and ksFromXMLfile() supports this format since version 0.5.
+-->
+
+
+<!--
+	Subversion stuff.
+	
+	$Id$
+	
+ -->
+
+
+<keyset xmlns="https://www.libelektra.org"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="https://www.libelektra.org elektra.xsd"
+
+		parent="user:/tmp">
+
+	<!-- The wrapping keyset is not really necessary. The key element
+		 can be a root key -->
+	
+	<key basename="dir1"> <!-- complete name is user:/tmp/dir1 -->
+		<key basename="xyz"> <!-- complete name is user:/tmp/dir1/xyz -->
+			<value>abc</value>
+			<comment>comment1</comment>
+		</key>
+		<key basename="abc"> <!-- complete name is user:/tmp/dir1/abc -->
+			<value>xyz</value>
+			<comment>comment1</comment>
+		</key>
+		<key basename="dir2"> <!-- complete name is user:/tmp/dir1/dir2 -->
+			<key basename="def"> <!-- complete name is user:/tmp/dir1/dir2/def -->
+				<value>cecece</value>
+			</key>
+			<key basename="uvw"> <!-- complete name is user:/tmp/dir1/dir2/uvw -->
+				<value>tatata</value>
+			</key>
+		</key>
+	</key>
+</keyset>
+

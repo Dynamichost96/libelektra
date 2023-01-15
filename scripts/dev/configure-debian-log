@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# @author Markus Raab <elektra@markus-raab.org>
+# @brief Configure a debian build
+# @date 02.09.2014
+# @tags configure, debian
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/configure-common"
+
+cd "$BUILD" || exit
+cmake -DPLUGINS="ALL" \
+	-DTOOLS="ALL" \
+	-DBINDINGS="ALL;-ruby" \
+	-DENABLE_DEBUG="OFF" \
+	-DENABLE_LOGGER="ON" \
+	-DGTEST_ROOT="/usr/src/googletest/googletest" \
+	"$@"

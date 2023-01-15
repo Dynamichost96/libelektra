@@ -1,0 +1,34 @@
+#!/bin/sh
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/include-common"
+
+if [ "$#" -ne 1 ] || ! [ -d "$1" ]; then
+	echo "Usage: $SELF build-dir"
+	exit 1
+fi
+
+BDIR="$1"
+SDIR=$(dirname "$SELF")
+EDIR=$(dirname "$SDIR")
+
+echo "Elektra Source is assumed at $EDIR, build directory is given at $BDIR"
+
+# quit with error if cbmc fails
+set -ex
+
+ARG="--depth 200 -D ELEKTRA_BMC"
+EINC="-I $EDIR/src/include -I $BDIR/src/include"
+if stringContain "Darwin" "$(uname)"; then
+	YINC="-I /usr/local/include/yajl -I $BDIR/src/plugins/yajl"
+else
+	YINC="-I /user/include/yajl -I $BDIR/src/plugins/yajl"
+fi
+
+cd "$EDIR"/src/plugins/yajl
+# shellcheck disable=SC2086
+cbmc --function elektraYajlSet $ARG $YINC $EINC yajl_gen.c
+
+cd "$EDIR"/src/libs/elektra
+# shellcheck disable=SC2086
+cbmc -D HAVE_KDBCONFIG_H --function kdbSet $ARG $EINC kdb.c

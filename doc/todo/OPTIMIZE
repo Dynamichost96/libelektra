@@ -1,0 +1,101 @@
+This page describes optimization tasks.
+
+general:
+	scripts for performance and stability testing
+	testing optimizations (-O2)
+	profile the code and fix optimization leaks
+	benchmark first!
+
+
+== mmap storage ==
+
+Implement as global plugins
+
+Cow: key/keyset for mmap storage [in progress]
+	allocate everything in keyNew in a single block
+	then for value/name changes, do malloc/realloc (COW)
+
+Mmap global plugin:
+	in the get path: resolver-like functionality to check if
+		mmap files are up-to-date, if they are immediately
+		return mmaped KeySet
+	at the end of get path: store everything so that it can
+		be mmaped the next time
+	sanity checks for byte order, version, validity...
+
+
+== lazyness ==
+
+make KeySet lazy (create keys on ksLookup)
+make getValue lazy (fetch value on ksLookup)
+	feature interferes with mmap storage and
+	might be even slower than mmap
+
+== SEARCH ==
+
+profiler:
+	search for slow parts
+
+elektraMalloc trace:
+	reduce elektraMallocs
+
+keySet:
+	make statistics how many keys typical applications need
+	be efficient for typical needs
+
+== metadata ==
+
+Because metadata is often the same across many keys we introduced a way to share it.
+heap profiling of a large keyset with/without shared metadata
+
+examine "benchmark" again, maybe some more interesting things are hidden there...
+
+== EXCEPTION ==
+
+do not throw exceptions within checker plugins (or fix benchmark)
+
+
+== OPTIMIZE ==
+
+Key unchanged always checked correctly?
+
+check if anything was really changed making key dirty
+
+optimize a key to use a single elektraMalloc
+	(under typical circumstances)
+	have all memory of a Key in a single allocation block
+	or use internally memory management which can be in mmap?
+	-> especially useful for keyNew
+
+dynamic memory management:
+	improve realloc, use srealloc
+	don't use sprintf, asprintf, strdup, strndup
+	use only own functions where available
+	use different compilers, libc too
+
+ksAppend() in O(1)
+
+iconv:
+	open handles in kdbOpen? (depending on kdbOpen optimization that it is only done when needed)
+
+
+== OTHER ==
+
+getString in C++
+
+
+
+== BENCHMARK TESTS ==
+
+iteration
+multiple type checkers overhead?
+insertion (dump::serialise)
+null ptr checks
+many mountpoints
+many globbing statements
+
+== DATA STRUCTURES ==
+
+improve memory footprint C structures:
+	http://www.catb.org/esr/structure-packing/?src=yc
+

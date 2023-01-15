@@ -1,0 +1,250 @@
+## Ignored compiler errors
+### GCC
+- Ignoring some "maybe-uninitialized" upstream errors from libstdc++ 12.x.x in commit bd1543a1b98fb988f01bedcc266b35b5c4d6240f
+
+## disabled tests
+
+There are many disabled tests because of the new-backend updates.
+All these tests are marked with a `TODO [new_backend]` or `FIXME [new_backend]` comment.
+
+unit tests for elektraMountpointsParse in src/libs/elektra/kdb.c
+
+src/plugins/lua/CMakeLists.txt  for APPLE
+src/plugins/jni/CMakeLists.txt
+src/plugins/python/CMakeLists.txt
+tests/shell/check_merge.sh   for INI
+tests/shell/shell_recorder/mathcheck.esr     for INI (hard-coded ni)
+doc/help/kdb-get.md   for INI
+src/bindings/swig/ruby/tests/CMakeLists.txt disabled testruby_tools_plugindatabase.rb in commit 87d1a4f1ec19a0cf86b877e6d2eb9e1d124d96ee
+
+scripts/jenkins/Jenkinsfile disabled buildint openwrt packages in c0ffb72e10e6e145989b61bad8a36e4a77450acf
+
+### Jenkins
+
+We disabled the tests
+
+- `testmod_dbus`,
+- `testmod_dbusrecv`,
+- `testmod_fcrypt`,
+- `testmod_gpgme`, and
+- `testmod_zeromqsend`
+
+in the function `ctest` in the file `scripts/jenkins/Jenkinsfile`, since they are known to
+[cause problems in high load scenarios](https://issues.libelektra.org/2439).
+
+We also disabled `testmod_zeromqsend` from `kdb run_all` in `tests/shell/run_all.sh`. (See commit 526f916d3c983d5310448c002510f06c4d4b43ac)
+
+We disabled `testmod_crypto` on `debian-unstable-full-clang` due to memory leaks.
+
+## error
+
+test that error codes are set correctly
+	multiple plugins
+	multiple kdbGet/kdbSet calls
+
+test failing mount with error plugin
+
+test error plugin when mounted at open
+
+
+## yajl
+
+array:
+	together with yajl
+	check if its a valid array via metadata
+	spec:/array metadaten: array=1-10
+	user:/array/#0 -> valid
+	user:/array -> invalid
+	system:/array/x -> invalid
+
+## mingw
+
+test cases do not build
+	see (#131)
+
+## conflicts
+
+fix testkdb_conflict:
+	longer get/set sequences
+	also with file/non-file
+	also with more than 2 KDB
+
+## afl
+
+also test http://blog.llvm.org/2015/04/fuzz-all-clangs.html v(#185)
+test all plugins with it
+integrate in build server (#160)
+
+## errno
+
+check if errno is never changed
+
+## fork
+
+fork-safety?
+https://github.com/fish-shell/fish-shell/wiki/fish's-Fork-and-Pthread-Manifesto
+
+
+## test ##
+
+full coverage of all plugins in end-to-end test
+	create a directory value rewriter for ini+yajl
+
+test libelektratools:
+	addPlugin(Plugin) tests
+	usePath functionality?
+
+
+trailingslashes in TMPDIR?
+
+## fuzz testing
+
+- for configuration files (import)
+- using kdb shell
+- using kdb mount spec
+
+## asan
+
+ASAN disables the following parts during cmake as they throw errors:
+- bindings:
+  - SWIG
+  - GLIB
+  - IO (+async notification example)
+
+Further kdb_check_internal skips tests that output sanitizer warnings during
+load as it would make the test fail.
+
+No tutorial validation is done for `validation.md` with ASAN because during the
+mount spec step an memory leak is detected which fails the test.
+
+## bindings
+
+- ruby excluded due to failing tests (see #1770)
+
+
+== ABI compatibility tests ==
+
+need defined set of tests which only use tests.h (and not internal,..)
+deploy them correctly and run old tests with new elektra
+
+symbols:
+	check exported symbols
+	use symbol table
+
+
+make list of all symbols
+	exported symbols
+	reduce it hard
+	symbole, only export (sonst static)
+	Version info 4.0
+
+== integration tests ==
+
+run-tests run-shell-tests
+
+kdb convert
+converting (any to any storage plugin)
+
+locales
+
+all commandline parameters
+	compatibility tests
+
+== LEVELS ==
+
+make different levels of testing:
+core tests
+test with shell scripts (all of them modify kdb)
+test with shell scripts that modify in-build (external, gen)
+
+Goal: allow to install scripts even if running them does not work
+(during package creation)
+
+== cpptests ==
+
+make common cmake test infrastructure for cpp plugin tests
+needed in: type, dump (currently no tests)
+
+== srcdir ==
+
+Currently a srcdir is defined, but no dir to write to
+needed for fstab, dump and so on tests..
+
+== testmod ==
+
+most plugins do not use PLUGIN_OPEN interface
+most plugins (especially storage) do only basic or no tests
+	dump
+	fstab
+	hosts
+
+= Missing test cases =
+
+test cases for locking file
+
+more test cases for kdb interface
+	also mount! and check for functionality regressions
+	ls over multiple mountpoints
+
+hosts typesafe with plugins enabled
+
+iterator interface (+document better)
+
+cursor placement:
+	ksCut within cutted area
+	ksAppend
+
+backends below other: ls does not work recursively
+also ls above multiple plugins
+
+and execute the kdb test functions
+(but reduce #)
+
+Partly written configuration tests?
+	(rollback at commit?)
+converting of config files (automated tests)
+
+== ADVANCED ==
+
+testing coverage:
+	-fprofile-arcs
+	-ftest-coverage
+	reasoning which parts are tested
+
+advanced testing:
+	get and set a real big amount of keys
+	multithreading testing
+
+
+testing framework step by step
+	with all metadata
+	with all calling combinations
+	(test driven development)
+
+see if config file does proper roundtrips
+
+== scripts ==
+
+script testing:
+	should be ran by make test
+	should be available at tarket (be installed)
+	can be everything directly at the kdb commandline tool
+	should be able to run tests for all plugins +
+	different combination of plugins
+	should support partly installations and/or builds (not all plugins)
+	line number (maybe not important)
+	modularity (testing where the code is) (maybe not important)
+		-> plugin specifica might be tested at other level/only C
+		-> how to do without need of capabilities again? backends at serialization level?? (like with mount)
+
+import/export:
+	with all plugins
+	with automated kdb tests
+
+kdb test cases:
+	for mount/umount
+	for import/export/convert
+	using chroot
+
+ABI unit tests: (manually)
+	install old unit tests with new elektra for ABI tests

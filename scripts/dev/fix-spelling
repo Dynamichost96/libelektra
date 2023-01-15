@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+#
+# @author Markus Raab <elektra@markus-raab.org>
+# @brief Fix spelling error in most files
+# @date 09.03.2017
+# @tags reformat
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/include-common"
+
+cd "$SOURCE" || exit
+
+sed --version &> /dev/null
+if [ $? -eq 0 ]; then
+	# GNU sed
+	script="scripts/spelling.sed"
+	inplace=(-i)
+else
+	# BSD sed
+	sed -e 's/\\</[[:<:]]/' -e 's/\\>/[[:>:]]/' scripts/spelling.sed > /tmp/sed
+	script="/tmp/sed"
+	inplace=(-i '')
+fi
+
+$(find . -type f \( -iname '*.md' ! -ipath '**/node_modules/**/*' ! -ipath '**/doc/images/*' ! -ipath '**/.git*/*' ! -ipath '**/googletest-src/*' \) -exec \
+	sed "${inplace[@]}" -E -f "$script" '{}' +)
+$(sed "${inplace[@]}" -E -f "$script" doc/*.ini)

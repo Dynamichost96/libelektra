@@ -1,0 +1,44 @@
+restylers_version: stable
+auto: true
+pull_requests: false
+restylers:
+
+  - clang-format:
+      image: restyled/restyler-clang-format:13.0.1
+      include:
+        - "**/*.c"
+        - "**/*.cc"
+        - "**/*.cpp"
+        - "**/*.cxx"
+        - "**/*.c++"
+        - "**/*.C"
+        - "**/*.cs"
+        - "**/*.h"
+        - "**/*.hh"
+        - "**/*.hpp"
+        - "**/*.hxx"
+        - "**/*.h++"
+        - "**/*.H"
+        - "!tests/shell/gen/**/*"
+        - "!**/*.js"
+      command:
+        - clang-format
+        - "-i"
+        - "--style=file"
+  - prettier:
+      image: restyled/restyler-prettier:v2.5.1
+  - prettier-markdown:
+      image: restyled/restyler-prettier:v2.5.1
+      arguments: []
+  - shfmt:
+      image: restyled/restyler-shfmt:v3.4.3
+      arguments:
+        - -s
+        - -sr
+  - google-java-format:
+      image: 'restyled/restyler-google-java-format:v1.9'
+      command:
+        - google-java-format
+        - '--replace'
+      include:
+        - '**/*.java'

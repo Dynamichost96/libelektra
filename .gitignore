@@ -1,0 +1,88 @@
+# git-ls-files --others --exclude-from=.git/info/exclude
+# Lines that start with '#' are comments.
+# For a project mostly in C, the following would be a good set of
+# exclude patterns (uncomment them if you want to use them):
+
+#ignore backups
+*~
+
+#ignore debian patches
+/.pc/
+/debian/patches/
+
+#ignore all build directories of cmake
+build*/
+cmake-build*/
+!scripts/build/
+CMakeCache.txt
+**/CMakeFiles/**
+
+#ignore ctags + gdb history files
+.ctags
+tags
+.gdb_history
+
+#ignore emacs backup files
+\#*#
+
+#ignore Makefile in project root
+/Makefile
+
+#ignore vim swp files
+*.swp
+
+#ignore netbeans project files
+nbproject/
+
+#ignore macOS folder attribute files
+.DS_Store
+.directory
+
+#ignore pyc files
+*.pyc
+__pycache__
+
+#ignore CLion project files
+## User-specific stuff
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/**/usage.statistics.xml
+.idea/**/dictionaries
+.idea/**/shelf
+
+## Generated files
+.idea/**/contentModel.xml
+
+## Sensitive or high-churn files
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/dbnavigator.xml
+
+# File-based project format
+*.iws
+
+# Editor-based Rest Client
+.idea/httpRequests
+
+*.iml
+modules.xml
+.idea/misc.xml
+*.ipr
+
+# Vagrant directories
+.vagrant/
+
+# Files for testing with docker (c.f. https://www.libelektra.org/tutorials/run-all-tests-with-docker)
+elektra-build-docker/
+elektra-install/
+
+# Flatpak directories
+.flatpak-builder/
+.flatpak-app/
+
+# CMake Presets
+CMakeUserPresets.json

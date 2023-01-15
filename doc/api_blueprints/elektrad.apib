@@ -1,0 +1,185 @@
+FORMAT: 1A
+
+# elektrad API
+
+to access single instances, each elektra daemon (`elektrad`) provides a REST
+HTTP API
+
+
+## get versions [GET /version]
+
+returns the current version of the API and elektra
+
+The API version is increased whenever breaking changes
+(i.e. changes that prevent backward compatibility) are made.
+The Elektra version is directly taken from the Elektra library,
+for further information and explanation see [doc/VERSION.md](https://github.com/ElektraInitiative/libelektra/blob/master/doc/VERSION.md).
+
++ Response 200 (application/json; charset=utf-8)
+    + Attributes (object)
+        + api: 1 (number) - The version of the API itself
+        + elektra (object) - Detailed version information about the used Elektra library
+            + version: 0.8.23 (string) - The currently used version in its complete format
+            + major: 0 (number) - The currently used major version
+            + minor: 8 (number) - The currently used minor version
+            + patch: 23 (number) - The currently used patch version
+
+
+## elektra key database [/kdb/{+path}]
+
+access the elektra key database by specifying a `path`
+
+### get configuration [GET]
+
+this actually does `kdb get`, `kdb ls` and `kdb meta-ls`/`kdb meta-get` at once and is used to browse the kdb
+
++ Request
+    + Parameters
+        + path: `user/hello` (string) - path to the elektra config
+
++ Response 200 (application/json; charset=utf-8)
+    + Attributes (KDBResponse)
+
++ Request
+    + Parameters
+        + path: `user/doesnotexist` (string) - path to the elektra config
+
++ Response 200 (application/json; charset=utf-8)
+    + Attributes (object)
+        + exists: false (boolean, required)
+        + name: doesnotexist (string, required)
+        + path: user/doesnotexist (string, required)
+        + ls: [] (array[string], required)
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+### set configuration [PUT]
+
+works like `kdb set`
+
++ Request (text/plain)
+    + Parameters
+        + path: `user/hello` (string) - path to the elektra config
+
+    + Body
+
+            hello world
+
++ Response 200
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+### delete configuration [DELETE]
+
+delete a key (and all its subkeys) - works like `kdb rm -r`
+
++ Request
+    + Parameters
+        + path: `user/hello` (string) - path to the elektra config
+
++ Response 200
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+
+## find keys [GET /kdbFind/{+query}]
+
++ Request (application/json)
+    + Parameters
+        + query: `hello` (string) - search query
+
++ Response 200 (application/json; charset=utf-8)
+    + Body
+
+            [
+                "user/hello",
+                "user/helloWorld"
+            ]
+
+
+## metakeys [/kdbMeta/{+path}]
+
+### create metakey [POST]
+
++ Attributes (Metakey)
+
++ Request (application/json)
+    + Parameters
+        + path: `user/hello` (string) - path to the elektra config
+
++ Response 204
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+### delete metakey [DELETE]
+
++ Attributes (Metakey)
+
++ Request (application/json)
+    + Parameters
+        + path: `user/hello` (string) - path to the elektra config
+
++ Response 204
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+
+## move operation [POST /kdbMv/{+from}]
+
+move a key (and all its subkeys) to a new path - works like `kdb mv -r`
+
++ Request (text/plain)
+    + Parameters
+        + from: `user/hello` (string) - path to the elektra config
+
+    + Body
+
+            user/toPath
+
++ Response 204
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+
+## copy operation [POST /kdbCp/{+from}]
+
+copy a key (and all its subkeys) to a new path - works like `kdb cp -r`
+
++ Request (text/plain)
+    + Parameters
+        + from: `user/hello` (string) - path to the elektra config
+
+    + Body
+
+            user/toPath
+
++ Response 204
+
++ Response 400 (application/json; charset=utf-8)
+    + Attributes (Error)
+
+
+
+# Data Structures
+
+## KDBResponse (object)
++ exists: true (boolean, required) - `true` if the key exists in the kdb
++ name: hello (string, required) - name of the requested key
++ path: user/hello (string, required) - full path of the requested key
++ ls: user/hello, user/hello/world (array[string], required) - subkeys of the requested path, similar to `kdb ls`
++ value: hello world (string) - value of the key. Note: a key can exist but not have a value!
++ meta (object) - metadata of the requested path
+
+## Error (object)
++ name (string) - description of the error, e.g. KDBError
++ message (string) - detailed error information, e.g. hint about malformed request
+
+## Metakey (object)
++ key: metaName (string, required)
++ value: meta value (string, required)

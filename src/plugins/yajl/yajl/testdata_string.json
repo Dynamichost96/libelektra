@@ -1,0 +1,5 @@
+{
+    "second_string_key": "some string",
+    "string_key": "25",
+    "third_string_key": "escape {}; \" \\ problem"
+}

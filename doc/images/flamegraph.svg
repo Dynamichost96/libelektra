@@ -1,0 +1,613 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="230" onload="init(evt)" viewBox="0 0 1200 230" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+	}
+
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom();
+			zoom(target);
+		}
+		else if (e.target.id == "unzoom") unzoom();
+		else if (e.target.id == "search") search_prompt();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	}, false)
+
+	// functions
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+		return;
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x = txt.length - 2; x > 0; x--) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// TODO: Workaround for JavaScript float issues
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+	}
+	function unzoom() {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+	}
+
+	// search
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)", "");
+			if (term != null) {
+				search(term)
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		var re = new RegExp(term);
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="230.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="213" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="matched" x="1090.00" y="213" > </text>
+<g id="frames">
+<g >
+<title>std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;::~vector() (8,093 samples, 0.05%)</title><rect x="1182.9" y="149" width="0.6" height="15.0" fill="rgb(213,54,44)" rx="2" ry="2" />
+<text  x="1185.88" y="159.5" ></text>
+</g>
+<g >
+<title>elektraUnescapeKeyName (6,272 samples, 0.04%)</title><rect x="1132.6" y="85" width="0.5" height="15.0" fill="rgb(242,199,47)" rx="2" ry="2" />
+<text  x="1135.58" y="95.5" ></text>
+</g>
+<g >
+<title>keyGetMeta (49,895 samples, 0.32%)</title><rect x="960.2" y="69" width="3.8" height="15.0" fill="rgb(236,43,34)" rx="2" ry="2" />
+<text  x="963.21" y="79.5" ></text>
+</g>
+<g >
+<title>keyIsBinary (82,807 samples, 0.53%)</title><rect x="957.7" y="85" width="6.3" height="15.0" fill="rgb(225,26,51)" rx="2" ry="2" />
+<text  x="960.73" y="95.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (1,185,648 samples, 7.55%)</title><rect x="1087.1" y="101" width="89.1" height="15.0" fill="rgb(227,137,9)" rx="2" ry="2" />
+<text  x="1090.12" y="111.5" >elektraKey..</text>
+</g>
+<g >
+<title>ksAppendKey (5,823 samples, 0.04%)</title><rect x="704.4" y="101" width="0.5" height="15.0" fill="rgb(220,159,28)" rx="2" ry="2" />
+<text  x="707.43" y="111.5" ></text>
+</g>
+<g >
+<title>keyNew (186,175 samples, 1.19%)</title><rect x="390.3" y="117" width="14.0" height="15.0" fill="rgb(245,121,52)" rx="2" ry="2" />
+<text  x="393.29" y="127.5" ></text>
+</g>
+<g >
+<title>elektraStrNDup (13,157 samples, 0.08%)</title><rect x="947.5" y="85" width="1.0" height="15.0" fill="rgb(227,190,44)" rx="2" ry="2" />
+<text  x="950.49" y="95.5" ></text>
+</g>
+<g >
+<title>elektraVFormat (16,324 samples, 0.10%)</title><rect x="894.7" y="101" width="1.2" height="15.0" fill="rgb(241,3,22)" rx="2" ry="2" />
+<text  x="897.65" y="111.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (13,873 samples, 0.09%)</title><rect x="966.7" y="85" width="1.1" height="15.0" fill="rgb(212,174,4)" rx="2" ry="2" />
+<text  x="969.74" y="95.5" ></text>
+</g>
+<g >
+<title>keyDel (57,544 samples, 0.37%)</title><rect x="988.6" y="85" width="4.3" height="15.0" fill="rgb(221,151,26)" rx="2" ry="2" />
+<text  x="991.59" y="95.5" ></text>
+</g>
+<g >
+<title>elektraModulesInit (253,579 samples, 1.62%)</title><rect x="385.2" y="133" width="19.1" height="15.0" fill="rgb(234,16,44)" rx="2" ry="2" />
+<text  x="388.23" y="143.5" ></text>
+</g>
+<g >
+<title>ksClose (16,767 samples, 0.11%)</title><rect x="1178.3" y="117" width="1.2" height="15.0" fill="rgb(232,215,11)" rx="2" ry="2" />
+<text  x="1181.25" y="127.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (31,072 samples, 0.20%)</title><rect x="691.6" y="69" width="2.3" height="15.0" fill="rgb(244,104,0)" rx="2" ry="2" />
+<text  x="694.56" y="79.5" ></text>
+</g>
+<g >
+<title>keySetBinary (140,235 samples, 0.89%)</title><rect x="693.9" y="101" width="10.5" height="15.0" fill="rgb(242,134,41)" rx="2" ry="2" />
+<text  x="696.89" y="111.5" ></text>
+</g>
+<g >
+<title>elektraSetErrorfC01100 (1,425,074 samples, 9.08%)</title><rect x="856.8" y="117" width="107.2" height="15.0" fill="rgb(210,39,5)" rx="2" ry="2" />
+<text  x="859.84" y="127.5" >elektraSetErr..</text>
+</g>
+<g >
+<title>thread_2745 (15,698,145 samples, 100.00%)</title><rect x="10.0" y="165" width="1180.0" height="15.0" fill="rgb(207,52,10)" rx="2" ry="2" />
+<text  x="13.00" y="175.5" >thread_2745</text>
+</g>
+<g >
+<title>elektraVFormat (10,594 samples, 0.07%)</title><rect x="371.0" y="117" width="0.8" height="15.0" fill="rgb(226,49,46)" rx="2" ry="2" />
+<text  x="374.05" y="127.5" ></text>
+</g>
+<g >
+<title>keyCompareByNameOwner (11,692 samples, 0.07%)</title><rect x="954.2" y="69" width="0.9" height="15.0" fill="rgb(220,212,51)" rx="2" ry="2" />
+<text  x="957.22" y="79.5" ></text>
+</g>
+<g >
+<title>ksLookup (14,861 samples, 0.09%)</title><rect x="704.9" y="101" width="1.1" height="15.0" fill="rgb(254,92,33)" rx="2" ry="2" />
+<text  x="707.87" y="111.5" ></text>
+</g>
+<g >
+<title>std::unordered_set&lt;std::shared_ptr&lt;antlr4::atn::PredictionContext&gt;, antlr4::atn::PredictionContextHasher, antlr4::atn::PredictionContextComparer, std::allocator&lt;std::shared_ptr&lt;antlr4::atn::PredictionContext&gt; &gt; &gt;::~unordered_set() (44,788 samples, 0.29%)</title><rect x="1179.5" y="149" width="3.4" height="15.0" fill="rgb(213,217,23)" rx="2" ry="2" />
+<text  x="1182.52" y="159.5" ></text>
+</g>
+<g >
+<title>keyDel (7,190 samples, 0.05%)</title><rect x="384.7" y="37" width="0.5" height="15.0" fill="rgb(214,166,29)" rx="2" ry="2" />
+<text  x="387.69" y="47.5" ></text>
+</g>
+<g >
+<title>yanlr::YAML::Initializer::Initializer() (86,604 samples, 0.55%)</title><rect x="1183.5" y="149" width="6.5" height="15.0" fill="rgb(223,54,9)" rx="2" ry="2" />
+<text  x="1186.49" y="159.5" ></text>
+</g>
+<g >
+<title>main (15,558,660 samples, 99.11%)</title><rect x="10.0" y="149" width="1169.5" height="15.0" fill="rgb(239,171,52)" rx="2" ry="2" />
+<text  x="13.00" y="159.5" >main</text>
+</g>
+<g >
+<title>keyDel (5,562 samples, 0.04%)</title><rect x="963.5" y="53" width="0.5" height="15.0" fill="rgb(216,178,32)" rx="2" ry="2" />
+<text  x="966.54" y="63.5" ></text>
+</g>
+<g >
+<title>keyVInit (30,094 samples, 0.19%)</title><rect x="965.5" y="101" width="2.3" height="15.0" fill="rgb(207,157,16)" rx="2" ry="2" />
+<text  x="968.52" y="111.5" ></text>
+</g>
+<g >
+<title>keyVInit (1,817,493 samples, 11.58%)</title><rect x="1040.3" y="117" width="136.7" height="15.0" fill="rgb(220,227,6)" rx="2" ry="2" />
+<text  x="1043.35" y="127.5" >keyVInit</text>
+</g>
+<g >
+<title>ksClear (136,638 samples, 0.87%)</title><rect x="375.0" y="117" width="10.2" height="15.0" fill="rgb(221,18,18)" rx="2" ry="2" />
+<text  x="377.96" y="127.5" ></text>
+</g>
+<g >
+<title>ksClose (18,946 samples, 0.12%)</title><rect x="383.8" y="53" width="1.4" height="15.0" fill="rgb(253,91,4)" rx="2" ry="2" />
+<text  x="386.80" y="63.5" ></text>
+</g>
+<g >
+<title>elektraModulesClose (178,069 samples, 1.13%)</title><rect x="371.8" y="133" width="13.4" height="15.0" fill="rgb(244,29,24)" rx="2" ry="2" />
+<text  x="374.84" y="143.5" ></text>
+</g>
+<g >
+<title>keyVInit (55,167 samples, 0.35%)</title><rect x="689.7" y="85" width="4.2" height="15.0" fill="rgb(238,170,15)" rx="2" ry="2" />
+<text  x="692.75" y="95.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (67,319 samples, 0.43%)</title><rect x="399.2" y="85" width="5.1" height="15.0" fill="rgb(220,151,27)" rx="2" ry="2" />
+<text  x="402.23" y="95.5" ></text>
+</g>
+<g >
+<title>keyNew (10,979 samples, 0.07%)</title><rect x="703.6" y="69" width="0.8" height="15.0" fill="rgb(210,50,21)" rx="2" ry="2" />
+<text  x="706.61" y="79.5" ></text>
+</g>
+<g >
+<title>ksAppendKey (80,202 samples, 0.51%)</title><rect x="949.1" y="85" width="6.0" height="15.0" fill="rgb(215,115,32)" rx="2" ry="2" />
+<text  x="952.07" y="95.5" ></text>
+</g>
+<g >
+<title>elektraModulesLoad (2,138,707 samples, 13.62%)</title><rect x="545.2" y="117" width="160.8" height="15.0" fill="rgb(224,200,36)" rx="2" ry="2" />
+<text  x="548.23" y="127.5" >elektraModulesLoad</text>
+</g>
+<g >
+<title>keyString (13,345 samples, 0.09%)</title><rect x="967.8" y="117" width="1.0" height="15.0" fill="rgb(239,213,36)" rx="2" ry="2" />
+<text  x="970.78" y="127.5" ></text>
+</g>
+<g >
+<title>keyString (117,834 samples, 0.75%)</title><rect x="955.1" y="101" width="8.9" height="15.0" fill="rgb(234,191,45)" rx="2" ry="2" />
+<text  x="958.10" y="111.5" ></text>
+</g>
+<g >
+<title>elektraYajlGet (3,496,148 samples, 22.27%)</title><rect x="706.0" y="133" width="262.8" height="15.0" fill="rgb(211,176,34)" rx="2" ry="2" />
+<text  x="708.99" y="143.5" >elektraYajlGet</text>
+</g>
+<g >
+<title>elektraKeySetName (252,274 samples, 1.61%)</title><rect x="928.5" y="85" width="19.0" height="15.0" fill="rgb(226,56,30)" rx="2" ry="2" />
+<text  x="931.53" y="95.5" ></text>
+</g>
+<g >
+<title>all (15,698,145 samples, 100%)</title><rect x="10.0" y="181" width="1180.0" height="15.0" fill="rgb(228,192,32)" rx="2" ry="2" />
+<text  x="13.00" y="191.5" ></text>
+</g>
+<g >
+<title>elektraPluginOpen (4,006,606 samples, 25.52%)</title><rect x="404.8" y="133" width="301.2" height="15.0" fill="rgb(238,70,22)" rx="2" ry="2" />
+<text  x="407.82" y="143.5" >elektraPluginOpen</text>
+</g>
+<g >
+<title>keySetString (9,558 samples, 0.06%)</title><rect x="1176.2" y="101" width="0.8" height="15.0" fill="rgb(225,211,52)" rx="2" ry="2" />
+<text  x="1179.25" y="111.5" ></text>
+</g>
+<g >
+<title>keyNew (2,448,555 samples, 15.60%)</title><rect x="992.9" y="133" width="184.1" height="15.0" fill="rgb(211,103,11)" rx="2" ry="2" />
+<text  x="995.91" y="143.5" >keyNew</text>
+</g>
+<g >
+<title>elektraLookupBinarySearch (5,262 samples, 0.03%)</title><rect x="705.6" y="85" width="0.4" height="15.0" fill="rgb(224,97,41)" rx="2" ry="2" />
+<text  x="708.59" y="95.5" ></text>
+</g>
+<g >
+<title>keySetMeta (78,317 samples, 0.50%)</title><rect x="698.5" y="85" width="5.9" height="15.0" fill="rgb(247,73,21)" rx="2" ry="2" />
+<text  x="701.55" y="95.5" ></text>
+</g>
+<g >
+<title>keyNameIsProc (574,630 samples, 3.66%)</title><rect x="1133.1" y="85" width="43.1" height="15.0" fill="rgb(231,122,41)" rx="2" ry="2" />
+<text  x="1136.05" y="95.5" >keyN..</text>
+</g>
+<g >
+<title>ksDel (222,916 samples, 1.42%)</title><rect x="976.2" y="117" width="16.7" height="15.0" fill="rgb(220,207,16)" rx="2" ry="2" />
+<text  x="979.16" y="127.5" ></text>
+</g>
+<g >
+<title>keyVInit (124,565 samples, 0.79%)</title><rect x="394.9" y="101" width="9.4" height="15.0" fill="rgb(206,178,51)" rx="2" ry="2" />
+<text  x="397.92" y="111.5" ></text>
+</g>
+<g >
+<title>keyDel (320,948 samples, 2.04%)</title><rect x="968.8" y="133" width="24.1" height="15.0" fill="rgb(211,98,53)" rx="2" ry="2" />
+<text  x="971.79" y="143.5" >k..</text>
+</g>
+<g >
+<title>keyNew (50,912 samples, 0.32%)</title><rect x="964.0" y="117" width="3.8" height="15.0" fill="rgb(209,212,50)" rx="2" ry="2" />
+<text  x="966.96" y="127.5" ></text>
+</g>
+<g >
+<title>ksClose (97,600 samples, 0.62%)</title><rect x="377.9" y="101" width="7.3" height="15.0" fill="rgb(232,78,28)" rx="2" ry="2" />
+<text  x="380.89" y="111.5" ></text>
+</g>
+<g >
+<title>keyNew (7,864 samples, 0.05%)</title><rect x="948.5" y="85" width="0.6" height="15.0" fill="rgb(248,192,42)" rx="2" ry="2" />
+<text  x="951.48" y="95.5" ></text>
+</g>
+<g >
+<title>elektraPluginClose (7,065 samples, 0.05%)</title><rect x="404.3" y="133" width="0.5" height="15.0" fill="rgb(244,166,21)" rx="2" ry="2" />
+<text  x="407.29" y="143.5" ></text>
+</g>
+<g >
+<title>keyAddName (69,762 samples, 0.44%)</title><rect x="942.2" y="69" width="5.3" height="15.0" fill="rgb(244,50,16)" rx="2" ry="2" />
+<text  x="945.25" y="79.5" ></text>
+</g>
+<g >
+<title>ksDel (33,923 samples, 0.22%)</title><rect x="1177.0" y="133" width="2.5" height="15.0" fill="rgb(236,200,37)" rx="2" ry="2" />
+<text  x="1179.97" y="143.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (18,009 samples, 0.11%)</title><rect x="702.3" y="69" width="1.3" height="15.0" fill="rgb(207,85,3)" rx="2" ry="2" />
+<text  x="705.25" y="79.5" ></text>
+</g>
+<g >
+<title>keyAddBaseName (35,664 samples, 0.23%)</title><rect x="684.9" y="101" width="2.7" height="15.0" fill="rgb(227,152,34)" rx="2" ry="2" />
+<text  x="687.93" y="111.5" ></text>
+</g>
+<g >
+<title>keyAddName (12,202 samples, 0.08%)</title><rect x="403.4" y="69" width="0.9" height="15.0" fill="rgb(216,120,45)" rx="2" ry="2" />
+<text  x="406.37" y="79.5" ></text>
+</g>
+<g >
+<title>ksDel (34,394 samples, 0.22%)</title><rect x="382.6" y="69" width="2.6" height="15.0" fill="rgb(249,222,12)" rx="2" ry="2" />
+<text  x="385.64" y="79.5" ></text>
+</g>
+<g >
+<title>keyNew (83,529 samples, 0.53%)</title><rect x="687.6" y="101" width="6.3" height="15.0" fill="rgb(251,23,33)" rx="2" ry="2" />
+<text  x="690.61" y="111.5" ></text>
+</g>
+<g >
+<title>elektraKeySetName (13,655 samples, 0.09%)</title><rect x="962.5" y="53" width="1.0" height="15.0" fill="rgb(218,25,39)" rx="2" ry="2" />
+<text  x="965.51" y="63.5" ></text>
+</g>
+<g >
+<title>keyDel (5,396 samples, 0.03%)</title><rect x="1179.1" y="101" width="0.4" height="15.0" fill="rgb(239,28,29)" rx="2" ry="2" />
+<text  x="1182.11" y="111.5" ></text>
+</g>
+<g >
+<title>keySetMeta (787,822 samples, 5.02%)</title><rect x="895.9" y="101" width="59.2" height="15.0" fill="rgb(249,208,48)" rx="2" ry="2" />
+<text  x="898.88" y="111.5" >keySet..</text>
+</g>
+<g >
+<title>elektraFormat (23,183 samples, 0.15%)</title><rect x="370.1" y="133" width="1.7" height="15.0" fill="rgb(246,203,6)" rx="2" ry="2" />
+<text  x="373.10" y="143.5" ></text>
+</g>
+<g >
+<title>keyAddName (8,991 samples, 0.06%)</title><rect x="693.2" y="53" width="0.7" height="15.0" fill="rgb(241,183,38)" rx="2" ry="2" />
+<text  x="696.22" y="63.5" ></text>
+</g>
+<g >
+<title>ksClose (138,447 samples, 0.88%)</title><rect x="982.5" y="101" width="10.4" height="15.0" fill="rgb(241,91,8)" rx="2" ry="2" />
+<text  x="985.51" y="111.5" ></text>
+</g>
+<g >
+<title>keyDel (62,247 samples, 0.40%)</title><rect x="380.5" y="85" width="4.7" height="15.0" fill="rgb(244,110,8)" rx="2" ry="2" />
+<text  x="383.55" y="95.5" ></text>
+</g>
+</g>
+</svg>

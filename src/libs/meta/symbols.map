@@ -1,0 +1,12 @@
+libelektra_0.8 {
+	# kdbmeta.h
+	elektraKeyCmpOrder;
+	elektraMetaArrayAdd;
+	elektraMetaArrayToKS;
+	elektraMetaArrayToString;
+	elektraSortTopology;
+	keyComment;
+	keyGetComment;
+	keyGetCommentSize;
+	keySetComment;
+};

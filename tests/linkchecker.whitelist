@@ -1,0 +1,51 @@
+# Whitelist for the linkchecker
+#
+# Empty lines and lines starting with '#' will be stripped out.
+# If a link equals any other (even partial) line, it will not be checked.
+# This enables us to simply write example.com to exclude all partial URL matches
+# containing the given string. Keep in mind that http://libelektra.org/example.com
+# would also match the example exclusion pattern.
+#
+# The following link only works if you are logged into the build server
+# See also: https://github.com/ElektraInitiative/libelektra/issues/2674
+https://build.libelektra.org/job/libelektra/pipeline-syntax
+# Webdemo doesn't work right now
+# see https://github.com/ElektraInitiative/libelektra/issues/2913
+http://webdemo.libelektra.org
+https://webdemo.libelektra.org
+
+# Localhost links
+http://localhost:33333
+http://localhost:33334
+
+# Currently broken GitHub links
+git.libelektra.org
+github.com
+master.libelektra.org
+puppet.libelektra.org
+issues.libelektra.org
+
+# Currently broken links
+https://cgit.kde.org/kconfig.git
+https://doc.libelektra.org/coverage/master/debian-buster-full
+https://oyranos.org
+https://www.openicc.info/index.php%3Ftitle=OpenICC_Configuration_0.1.html
+https://cfp.linuxwochen.at/de/LWW18/public/events/798
+
+# Wrongly detected as broken, even though its online
+https://crates.io/crates/elektra
+https://crates.io/crates/elektra-sys
+https://www.sciencedaily.com/releases/2005/11/051103080801.htm
+https://lgtm.com
+https://researchcourse.pbworks.com/f/structural%2Bengineering.pdf
+https://developer.gnome.org/gio/2.26/GSettingsBackend.html
+https://community.kde.org/Akademy/2018/Config_Workshop
+https://gcc.gnu.org/onlinedocs/cpp/header-files/search-path.html
+
+# Certificate issues
+https://debian-stretch-repo.libelektra.org
+
+
+# Broken links to MinGW builds for Windows (see issue #4624), temporary fix to get PRs merged!
+https://build.libelektra.org/job/libelektra/job/master/lastSuccessfulBuild/artifact/artifacts/debian-bullseye-mingw-w64-i686/elektra.zip
+https://build.libelektra.org/job/libelektra/job/master/lastSuccessfulBuild/artifact/artifacts/debian-bullseye-mingw-w64-x86_64/elektra.zip

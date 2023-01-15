@@ -1,0 +1,27 @@
+#!/bin/sh
+
+set +ex
+
+git archive --prefix=elektra-"${KDB_VERSION}"/ --format=tar "${KDB_VERSION}" | gzip --no-name > "${CMAKE_BINARY_DIR}"/elektra-"${KDB_VERSION}".tar.gz
+
+hashsum() {
+	printf "name: "
+	basename $(ls "$1")
+
+	printf "size: "
+	ls -l "$1" | awk '{print $5;}'
+
+	printf "md5sum: "
+	md5sum "$1" | awk '{print $1;}'
+
+	printf "sha1: "
+	sha1sum "$1" | awk '{print $1;}'
+
+	printf "sha256: "
+	sha256sum "$1" | awk '{print $1;}'
+
+	printf "sha512: "
+	sha512sum "$1" | awk '{print $1;}'
+}
+
+hashsum "${CMAKE_BINARY_DIR}"/elektra-"${KDB_VERSION}".tar.gz > "${CMAKE_BINARY_DIR}"/elektra-"${KDB_VERSION}".tar.gz.hashsum

@@ -1,0 +1,62 @@
+#!/bin/sh
+#
+# @author René Schwaiger <sanssecours@me.com>
+# @brief Reformats Shell source code
+# @date 07.09.2018
+# @tags reformat
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/include-common"
+. "${SCRIPTS_DIR}/list-shell-scripts"
+
+cd "$SOURCE" || exit
+
+SHFMT="$(which shfmt)"
+SHFMT_VERSION="$(shfmt --version 2> /dev/null | sed s/^v//)"
+SHFMT_MAJOR_VERSION=$(printf "$SHFMT_VERSION" | sed -E 's/([1-9]+)\..*/\1/')
+if [ -z "${SHFMT}" ] || [ "$SHFMT_MAJOR_VERSION" = "(devel)" ] || [ "$SHFMT_MAJOR_VERSION" -ge 4 ]; then
+	SHFMT="$(which shfmt3)"
+	SHFMT_VERSION="$(shfmt3 --version 2> /dev/null | sed s/^v//)"
+	SHFMT_MAJOR_VERSION=$(printf "$SHFMT_VERSION" | sed -E 's/([1-9]+)\..*/\1/')
+	if [ -z "${SHFMT}" ] || [ "$SHFMT_MAJOR_VERSION" = "(devel)" ] || [ "$SHFMT_MAJOR_VERSION" -ge 4 ]; then
+		printf >&2 'shfmt:   %s\n' "$SHFMT"
+		printf >&2 'Version: %s\n' "$SHFMT_VERSION"
+		printf >&2 'Please install `shfmt` version 3\n'
+		exit 1
+	fi
+fi
+
+shell_files=$(list_shell_scripts)
+
+ignore_file=$(dirname "$0")/.shfmtignore
+if [ -f "$ignore_file" ]; then
+	shell_files=$(printf "%s\n" "$shell_files" | grep -v -f "$ignore_file")
+fi
+
+if [ $# -gt 0 ]; then
+	tmpfile=$(mktemp /tmp/elektra-reformat-shell.XXXXXX)
+	printf "%s\n" "$@" > "$tmpfile"
+	shell_files=$(printf "%s\n" "$shell_files" | grep -x -F -f "$tmpfile")
+	rm "$tmpfile"
+fi
+
+non_ignored=$(printf "%s\n" "$shell_files" | sed -nE 's/(.*)/'"'"'\1'"'"'/p' | xargs git check-ignore -vn | sed -nE 's/^::[[:blank:]]*(.*)$/\1/p')
+printf "%s\n" "$non_ignored" | sed -nE 's/(.*)/'"'"'\1'"'"'/p' | xargs "$SHFMT" -s -sr -w
+"$SHFMT" -s -sr -w 'tests/shell/include_common.sh.in'
+
+end_line=$(grep -n '^### END OF INCLUDE FILE ###$' 'tests/shell/include_common.sh.in' | cut -d':' -f1)
+
+if [ -z "$end_line" ]; then
+	printf 2>&1 'tests/shell/include_common.sh.in must contain the line "### END OF INCLUDE FILE ###" to indicate the end of the actual file content\n'
+	exit 1
+fi
+
+if [ "$end_line" -ge 1000 ]; then
+	printf 2>&1 'tests/shell/include_common.sh.in too long only 999 lines allowed.\n'
+	exit 1
+fi
+
+comment_lines=$((999 - end_line))
+head -n "$end_line" 'tests/shell/include_common.sh.in' > a.tmp && mv a.tmp 'tests/shell/include_common.sh.in'
+awk -v LINES="${comment_lines}" 'BEGIN { for (c = 0; c < LINES; c++) printf "#\n"; }' >> 'tests/shell/include_common.sh.in'
+echo "# empty lines up to 1000 so that line numbers in the resulting scripts are more useful" >> 'tests/shell/include_common.sh.in'

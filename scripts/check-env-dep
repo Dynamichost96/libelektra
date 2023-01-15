@@ -1,0 +1,43 @@
+#!/usr/bin/env sh
+
+generate_random_string() {
+	# While this command might not produce 6 pseudo random lower case letters, depending on the content of `/dev/urandom`, it should
+	# do so most of the time. Even if the output is a shorter string, this should not matter for the purpose of this script.
+	head /dev/urandom | LC_ALL=C tr -dc 'a-z' | head -c 6
+}
+
+if [ -z "$KDB" ]; then
+	KDB=kdb
+fi
+KDB="$(which "$KDB")"
+
+ORIG_PATHS="$("$KDB" mount-list-all-files)"
+ENV="$(env 2> /dev/null)"
+
+if [ -z "$ENV" ]; then
+	echo "no environment variables found"
+	exit 1
+fi
+
+printf '%s\n' "$ENV" | while IFS='' read -r env; do
+	# The script does **not** handle environment variables that contain newlines properly!
+	printf '%s' "$env" | grep -Eq '^[_a-zA-Z][_a-zA-Z]*=.*' || continue
+	NAME="$(echo "$env" | cut -d '=' -f1 2> /dev/null)"
+	if [ "$NAME" = "KDB" ] || [ "$NAME" = "PATH" ]; then
+		continue
+	fi
+	ORIG_VALUE="$(echo "$env" | cut -d '=' -f2- 2> /dev/null)"
+	NEW_VALUE=$(generate_random_string)
+	export "$NAME"="$NEW_VALUE" > /dev/null 2>&1
+	NEW_PATHS="$("$KDB" mount-list-all-files 2> /dev/null)"
+	ORIG_PATHS_FILE="$(mktemp)"
+	NEW_PATHS_FILE="$(mktemp)"
+	echo "$ORIG_PATHS" | sort 2> /dev/null > "$ORIG_PATHS_FILE"
+	echo "$NEW_PATHS" | sort 2> /dev/null > "$NEW_PATHS_FILE"
+	DIFF="$(comm -3 "$ORIG_PATHS_FILE" "$NEW_PATHS_FILE")"
+	rm "$ORIG_PATHS_FILE" "$NEW_PATHS_FILE"
+	if [ ! -z "$DIFF" ]; then
+		echo "$NAME influences $DIFF"
+	fi
+	export "$NAME"="\"$ORIG_VALUE\"" > /dev/null 2>&1
+done

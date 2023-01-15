@@ -1,0 +1,13 @@
+#!/bin/sh
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/include-common"
+
+CLANG_TIDY=$(which clang-tidy-3.8)
+if [ -z "${CLANG_TIDY}" ]; then
+	CLANG_TIDY=$(which clang-tidy)
+fi
+
+cd "$SOURCE" || exit
+
+$($CLANG_TIDY -fix-errors -checks="readability-braces-around-statements" $(find . -name '*.[ch]' -or -name '*.[ch]pp' -or -name '*.[ch].in' | grep -E -v "^(./src/tools/gen)"))

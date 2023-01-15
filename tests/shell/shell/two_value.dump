@@ -1,0 +1,8 @@
+kdbOpen 2
+$key string 0 4
+
+root
+$key string 3 5
+key
+value
+$end

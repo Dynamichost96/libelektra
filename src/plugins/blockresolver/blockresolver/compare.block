@@ -1,0 +1,5 @@
+key=outside start
+### block config start
+key=only the inside has changed
+### block config stop
+key=outside end

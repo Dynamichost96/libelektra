@@ -1,0 +1,123 @@
+Mountpoint: user:/tests/mathcheck
+DiffType: File
+File: mathcheck.esr
+Storage: mathcheck
+
+# Setup
+
+< kdb mount $File $Mountpoint $Storage ni
+
+# Test ../
+
+< kdb set $Mountpoint/check/test0/points 5.9
+< kdb set $Mountpoint/check/test1/points 4.5
+
+< kdb set $Mountpoint/check/gp
+
+< kdb meta-set $Mountpoint/check/gp check/math ":= + ../test0/points ../test1/points"
+
+STDOUT: 10.4
+< kdb get $Mountpoint/check/gp
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+
+# Test ./
+
+< kdb set $Mountpoint/check/gp/test0/points 5.9
+< kdb set $Mountpoint/check/gp/test1/points 4.5
+
+< kdb set $Mountpoint/check/gp
+
+< kdb meta-set $Mountpoint/check/gp check/math ":= + ./test0/points ./test1/points"
+
+STDOUT: 10.4
+< kdb get $Mountpoint/check/gp
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+# Test @/
+
+< kdb set $Mountpoint/check/test0/points 5.9
+< kdb set $Mountpoint/check/test1/points 4.5
+
+< kdb set $Mountpoint/check/gp
+
+< kdb meta-set $Mountpoint/check/gp check/math ":= + @/check/test0/points @/check/test1/points"
+
+STDOUT: 10.4
+< kdb get $Mountpoint/check/gp
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+# Test Null sum
+
+< kdb set $Mountpoint/key0 5
+
+< kdb set $Mountpoint/sum
+
+< kdb meta-set $Mountpoint/sum check/math ":= + @/key0 @/key1"
+
+STDOUT: 5
+< kdb get $Mountpoint/sum
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+# Test Null sub
+
+< kdb set $Mountpoint/key0 5
+
+< kdb set $Mountpoint/sub
+
+< kdb meta-set $Mountpoint/sub check/math ":= - @/key0 @/key1"
+
+STDOUT: 5
+< kdb get $Mountpoint/sub
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+# Test Null mul
+
+< kdb set $Mountpoint/key0 5
+
+< kdb set $Mountpoint/mul
+
+< kdb meta-set $Mountpoint/mul check/math ":= * @/key0 @/key1"
+
+STDOUT: 5
+< kdb get $Mountpoint/mul
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+# Test Null div
+
+< kdb set $Mountpoint/key0 5
+
+< kdb set $Mountpoint/div
+
+< kdb meta-set $Mountpoint/div check/math ":= / @/key0 @/key1"
+
+STDOUT: 5
+< kdb get $Mountpoint/div
+
+< kdb set $Mountpoint/check/a 3.1
+< kdb set $Mountpoint/check/b 4.5
+< kdb set $Mountpoint/check/k 7.6
+< kdb meta-set $Mountpoint/check/k check/math "== + ../a ../b"
+
+ERROR: C03200
+< kdb set $Mountpoint/check/k 7.7
+
+RET: 0
+< kdb rm -r $Mountpoint
+
+
+# Cleanup
+
+< kdb umount $Mountpoint

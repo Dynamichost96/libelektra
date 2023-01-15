@@ -1,0 +1,595 @@
+Ideas for new PLUGINS in elektra.
+Prefer using great frameworks to do that in short time with high quality.
+
+
+## Validation
+
+(dependent) optionality:
+	make a key only optional on some condition
+	otherwise fail if key is not present
+
+use getaddrinfo_a to make network plugin faster on many lookups
+
+constraint solver
+
+improve error messages for validation:
+	heuristics where last error has been (sync flag)
+	line number information
+
+### Function plugin ###
+
+allow to use functional programming in Elektra
+	e.g. if(true(abc), isnull(aaa), not('ab'))
+
+allow to load function (foo) of another plugin (check), too:
+	e.g. check::foo('abc', def)
+
+
+
+## REWRITE plugin ##
+
+metadata rewriter into value
+replaces NULL plugin
+
+binary, type and any other metadata
+encoded into string value
+also encode null value (only possible in binary)
+and binary (including encoding of null bytes and terminating null?)
+
+should play together with recode plugins nicely
+
+
+## Plugin nesting
+
+Lazy+Bind Mounting
+	makes kdbOpen cheaper (with many plugins)
+	plugins can have global information bind mounted into their conf
+	(e.g. /etc/passwd into resolver)
+	kdbDup to copy current state (avoid multiple bootstrapping)
+	leaves architecture as is -> possibility for any frontend and caching strategy + plays nicely with recursive plugins
+
+Concurrent Plugin Processing:
+	The plugins must be processed in the correct sequence because
+	they change keys and have side effects.
+	The processing of backends is however
+	completely independent up to, and after, the commit step.
+	Each of these two parts can be implemented concurrently.
+	If any backend fails before commit, special care must be taken so
+	that no backend commits its changes.
+	The concurrent processing of the plugins
+	is possible for both |kdbGet()| and |kdbSet()|.
+
+
+
+## LOGGING ##
+
+logging API:
+	showing/allowing multiple errors
+	macros for error/warning numbers
+
+
+## Others
+
+implement semlock plugin, see commit bc8b5d66bd4babba6bc8c34804b966daf6878a1d
+
+inherit/copy metadata/bind mounts:
+	kdb meta-set spec:/something inherit/override/# '"/elsewhere/key/" + basename'
+	und ein inherit-Plugin kopiert dann automatisch ein override /elsewhere/key/ (mit dem richtigen basename dran) in alle Subkeys (die nicht ein anderes inherit/override haben).
+
+werror plugin:
+	turn specified warnings into errors (for both get+set paths)
+
+
+
+## Links
+
+link fetcher plugin: kdbGet() of all parts where links point to
+
+checking for broken links:
+	run through the chain of override and fallback and see
+	if there is any cycle
+
+
+## OS abstraction ##
+
+uname also to set
+
+other syscalls
+/proc and /sys files
+	e.g. battery
+
+cpu infos:
+	sysconf with _SC_PHYS_PAGES _SC_AVPHYS_PAGES
+
+RAM infos:
+	sysconf with _SC_NPROCESSORS_CONF _SC_NPROCESSORS_ONLN
+
+
+## logging ##
+
+undo plugin
+write log files on every kdbSet() that allow to undo what happened in this commit
+
+log all warnings that happened
+
+alert plugin: log/e-mail when specific (important) parameters are changed
+
+global plugin that logs all resolved cascading keys received by the application
+
+forensic logging: add in-depth context information when a parameter was changed
+	environment, pid, gid, uid
+	timezone + in ms
+	IP
+	state of application
+
+
+
+
+
+
+# Helper plugins #
+
+## rename ##
+
+based on metadata
+	with fnmatch/regex
+
+further renaming features
+
+recode of names (using iconv)
+Namecencode
+nameutf8encode
+namehexencode
+
+arbitrary encodings via python/lua function
+
+
+# Storage plugins #
+
+
+## JSON ##
+
+types
+make validator that fails for inconsistent arrays
+
+
+== Schema ==
+
+convert elektra schema to xsd, yaml or similar
+base schema (user/system)
+plugins like fstab, hosts should provide their schema
+schema for config of plugins + generation of code for them
+
+define vectors, maps, class hierarchy
+upgrade by global schema files similar to ldconfig
+
+http://json-schema.org
+
+
+
+## PRETTY ##
+
+latex plugin to make pretty printed key/value pairs
+dot/graphviz plugin to visualize graph of keys
+html plugin (to show elektra config in html format)
+
+literate data
+	good for documentation
+	everything is ignored except special introduced key/value pairs
+	<start><key><separator><value><terminator>
+	needs two more special characters next to separator, but is
+	otherwise alike
+
+## non-file-based ##
+
+SQL
+
+filesys:
+	reintroduce? (useful for 0.7 migrations)
+	empty folder will not show up (only with %%dirdata)
+	Dirdata richtig escapen
+	Metadata reinschreiben
+	remove keys the new way
+	compare sets between current and desired state (set operations)
+	could be default-storage plugin, integrated resolver for previous siutation
+
+
+## storage ##
+
+add to/remove from array and map support
+	e.g. for ssh PubkeyAcceptedKeyTypes individual options should be added/removed
+	system:/../PubkeyAcceptedKeyTypes/ssh-dsa = 0 # off from admin
+	user:/../PubkeyAcceptedKeyTypes/ssh-dsa = 1 # user sets on
+	(remove via null keys?)
+
+
+## library supported ##
+
+xpath plugin:
+	on an xml file with an mapping from (reduced) xpath<->elektra keys
+
+C/C++ serialization
+	(ksNew(keyNew()))
+	reading with llvm?
+
+/etc/groups plugin (could be done with csvstorage)
+
+other file formats:
+	xfree
+	apache
+	kde-ini
+	gconf
+	inittab
+
+compile lenses as plugin:
+	+ no dependency at runtime
+	+ may be faster?
+
+xfconf file storage (see #47)
+
+
+### binary
+
+(may need orphan search or one file per plugin)
+
+Lightning Memory-Mapped Database (LMDB)
+
+Kyoto Cabinet
+unqlite
+eet
+tdb.samba (using tdb_traverse)
+sqlite
+
+
+
+
+## ERROR ##
+
+ignore_error plugin:
+	transform error of a plugin to a warning
+
+error handling control flags:
+	When errors occur, a decision must be made if the plugin is important enough to
+	stop the request completely or to go on with the other succeeding backends.
+	The Pluggable Authentication Modules, also known as PAM,
+	have developed a method to decide that well.
+	PAM uses the three control flags `required`, `optional` and `sufficient` for that.
+	Elektra does not support control flags.
+	Instead, the position of the plugin defines the semantics on how to proceed.
+	Plugins up to the commit plugin are `required` and later plugins are `optional`.
+	The control flag `sufficient` would make sense when support for multiple storage
+	plugins arises.
+
+
+
+# Generic plugins #
+
+awk bindings ($1=keyname $2=keyvalue $3=metakeyname $4=metakeyvalue .....)
+
+
+
+
+
+# FILTER Plugins #
+
+compression:
+	zlib
+	snappy
+	gzip the file
+
+base64 encode the file
+
+filter: key
+	metadata löschen
+	hidden keys
+
+
+advanced:
+	hash sum
+	binding
+
+infer links between configuration (user:/a=@user:/b)
+	and copy values
+
+
+## RESTRICTIONs ##
+
+restrict plugins to be written to
+plugin: readonly (do not allow to be written to backend)
+
+
+
+## CHECKERS ##
+
+check if hosts are reachable (e.g. by ping)
+
+path plugin:
+	allow random-generated parts in filenames
+	check NFS, mounting properties
+
+# RESOLVER #
+
+resolving using config/env vars ${HOME}/abc
+
+    /$HOME$/abc.conf  will resolve to  /home/markus/abc.conf if env var HOME=/home/markus
+
+Environment variable names are started and terminated with $. Note it is not possible to refer to a variable name that contains a $. I think this limitation is irrelevant (using = as terminating character would not have this limitation, but I think it would be confusing).
+
+If you want in the filename that contains $, you need to double it. So:
+
+    abc$USER$ -> USER as environment variable
+    abc$$USER$$ -> file name called abc$USER$
+    abc$USER -> error: used invalid unquoted $; checkFile should return -1
+
+Block resolver:
+	only take care of a block within the configuration file, leave the rest untouched
+	with support for multiple blocks
+
+Multi-file resolver:
+	resolve a directory of conf files with a backend each and merge them together
+
+support systems without home directory
+
+## no/ro resolver ##
+
+roresolver: check if something is modified
+	for version, constants, uname
+	and/or remove value comparison in those plugins
+	kdbGet should return 0 if nothing modified, too
+
+noresolver: make it always return 0?
+
+## split up ##
+
+nosync+nolock variants
+
+resolver-debug for tests
+	concurrency: sets breakpoints within (done!)
+	folder: write into folders controlled by env
+resolver-xdg-passwd
+	use passwd with XDG overrides
+resolver-xdg
+	use $HOME with XDG overrides
+resolver-hardcoded
+	(just use KDB_DB_* for single users embedded systems)
+	done! (needs better docu)
+resolver-passwd
+	done! (needs better docu)
+resolver-posix
+	using HOME def. in posix: http://pubs.opengroup.org/onlinepubs/009695399/basedefs/xbd_chap08.html
+	using USER as fallback? not def. in posix, but often in shells
+
+
+use swap (renameat2 RENAME_EXCHANGE)
+	to never loose user data even if modified during commit
+
+## improvements ##
+
+create new files securely:
+	fdopen(open("/tmp", O_TMPFILE ` O_EXCL ` O_RDWR, 0600), "rw");
+	linkat(AT_FDCWD, "/proc/self/fd/??", AT_FDCWD, pathname, AT_SYMLINK_FOLLOW)
+	pass "/proc/self/fd/??" to plugins
+
+better error messages:
+	#9 (when opening file failed)
+	resolver in kdbError should correct error message
+	the storage plugins do not have to state reason then
+
+make explicit state variable (for both user+system) or return fd!=-1
+
+resolver:
+	configurable fsync
+
+
+
+
+# Improve the plugin system itself #
+
+allow resolver/storage hybrids
+
+
+
+## VERSION IN CONTRACT ##
+
+Configure file for plugin.h
+with defines for verbosity, configuration, version numbers + contract in
+static inline function
+with licence, author in contract
+Everything also in constants/build_info
+add dependencies in contract?
+
+(makes dependency handling much more complex if, e.g. dump >= 0.5 is allowed)
+
+## Double passing of function pointers ##
+
+Currently function pointers for get/set/.. are passed twice
+(in contract and per plugin factory), should be reduced to one place.
+
+## Contract on Plugin configuration ##
+
+do not only depend on "provides" but on configuration another plugin
+provides. This option would allow to add multiple plugins with same
+functionality, but only one is configured to do it actually.
+* type checker
+* encoding
+
+Contract-Checker (linking against libtools) should be plugin too
+	makes sure only valid backend configurations are written
+
+More information about Plugins:
+	which elektra version built again
+	compiler
+	determine which plugins in all variants
+
+## Refinement and Inclusion ##
+
+The behavior of a plugin can be specialised and extended through
+contract refinement and a contract inclusion mechanism.
+They allow us to create new contracts using previously defined contracts.
+So the contract language can be viewed as a plugin interconnection
+language.
+
+## Metadata ##
+
+Plugins should state which metadata they can handle and which they can interpret or generate
+
+## Changing Features at runtime
+
+Plugins, that take care of character escaping and encoding,
+are needed so that limited
+storage plugins work properly.
+Removing them at run time is not a good idea.
+But other plugins that provide validation, notification and
+logging may be turned off.
+This could be done
+with information passed to the respective plugin.
+
+Another solution works
+completely without the cooperation of plugins, by
+removing the plugin from the chain of execution entirely.
+For example,
+if a notification daemon crashes, the affected plugins could be removed
+until the service is up again.
+
+We need to handle different situations for plugins.
+Some plugins are not
+allowed to be removed because they are required.
+Some must stay because the administrator forces a specific policy.
+Other plugins, however, can be removed.
+
+## Multiple Storage
+
+From high-availability systems a challenging requirement arises.
+How is it possible to make configuration storage redundant?
+
+To achieve that, every backend needs to write out configuration multiple
+times.
+Such backends will achieve a live-backup for configuration.
+The usage of different storage plugins writing to different machines
+even increases the availability of the configuration.
+
+To be more failure tolerant, we also have to improve the reading of
+configuration.
+Instead of stopping when the first storage plugin yields an error, the
+next one should be tried instead.
+We need a strict policy to ensure that
+these storage plugins always set an error if something goes wrong.
+
+
+
+## Transactions using Global Plugins
+
+We will see in the following examples that some tasks
+in `kdbSet()`
+have to happen respectively before, or after any other event occurs.
+A way to achieve this is by a special backend.
+The advantage of this approach is that plugins can also be reused for
+these tasks.
+These plugins will be referred to as \intro{global plugins} in
+this section.
+
+## Atomic Notification
+
+Until now,
+each backend has its own notification plugin.
+This means, that for every backend that commits, the applications will
+be notified.
+Listeners to these events, however, want to know when every
+backend during a `kdbSet()` transaction is settled.
+A global plugin can notify that a sequence of events is finished.
+Only then is it the time for other programs to update their
+configuration.
+
+notify plugin that remembers which app got which config
+(and thus we know who has outdated config)
+
+## Journalling
+
+When a program or computer crashes, committing may abort unexpectedly. If
+some backends have already committed, while others have not, an unsatisfying
+situation arises. The premise that `kdbSet()` is executed fully or not
+is broken. But the program does not exist anymore and no further actions are
+possible.
+Journalling provides a way to fix the problem when the next `kdbSet()` by
+another process is executed.
+
+It works by writing a journal log instead of directly moving files. Once
+the log is completely written and flushed to disk, a global plugin does
+the actual renaming of the files.
+When the program crashes in the first phase while writing the log, this
+is no problem because no configuration file has been changed up to that
+point.
+The unfinished log file has to be discarded.
+On the other hand,
+the program can replay the finished journal whenever the applications
+aborts at a later time.
+No intermediate state without knowing what needs to be done
+will occur.
+
+
+## plugin commands ##
+
+metadata that is evaluated by plugins
+
+metadata checker plugin: determines which metadata is present
+
+selective commit phases:
+	define phases, minimum:
+	commit
+	check
+
+norecursive:
+	only fetch a single plugin without recursion
+
+
+## DISTRIBUTOR BACKENDS ##
+
+can be used as default using symlinks
+
+1.st level citizen
+	allow resolver only (one plugin for backend to be able to hierarchically stack backends)
+	share modules globally (to allow loading of module within module)
+
+mount: current implementation
+mount-mpi: current implementation, but multithreaded
+filesystem: implementation compatible with 0.7
+lazy-mount
+bind-mount (using override)
+owner support
+user-mount
+
+do not hardcode 10 plugins (rationale?)
+
+
+## DEFAULT PLUGINS ##
+
+default plugin handling: resolver/storage
+
+policy how default storage & resolver plugin are named
+resolve the symlink and load the module with correct name
+
+is metadata in default plugin needed?
+	add rewrite plugins?
+
+default storage plugin:
+	changeable
+	nickel with meta in [] sections?
+
+DEFAULT_BACKEND ->
+	DEFAULT_STORAGE_PLUGIN
+	DEFAULT_RESOLVER_PLUGIN
+	(+ make it work)
+	good out-of-the-box behaviour
+
+## CPPTEMPLATE ##
+
+cpptemplate:
+	make a nice and easy cpp solution for plugins (improve current template)
+	(integration into cpp binding)
+	assemble C symbols with macros
+	keep C->C++ problems at one place to be included
+
+C++: (FINISH cpptemplate)
+	how to write backends in C++
+	Exceptions propagations
+	(C++ Exceptions to error codes)

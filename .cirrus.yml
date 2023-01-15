@@ -1,0 +1,363 @@
+env:
+  BUILD_DIR: build
+
+container:
+  greedy: true
+
+# We store common commands here, so we can reference them in the build jobs below.
+commands:
+  - &print_cmake_options |
+      printf '—— CMake Config ——\n'
+      for option; do printf '%s\n' "$option"; done
+  - &generate | # We need to specify the source directory (`.`) explicitly for Alpine linux (`🔗 Check`).
+    cmake "$@" -G Ninja -B "$BUILD_DIR" .
+  - &build cmake --build "$BUILD_DIR"
+  - &install output="$(cmake --build "$BUILD_DIR" --target install 2>&1)" || printf '%s' "$output"
+  - &run_tests | # Run tests
+    if [ "$ENABLE_ASAN" = 'ON' ]; then
+      cmake --build "$BUILD_DIR" --target run_nocheckshell
+    else
+      [ "$BUILD_FULL" = 'ON' ] && KDB=kdb-full || KDB=kdb
+      # While the command `|| false` is in theory unnecessary, somehow the whole `if`-statement always reports success,
+      # if we do not add the alternative `false`.
+      cmake --build "$BUILD_DIR" --target run_all && "$KDB" run_all || false
+    fi
+
+task:
+  matrix:
+
+    - name: 😈 FreeBSD 12
+      freebsd_instance:
+        cpu: 4
+        memory: 8G
+        image_family: freebsd-12-3
+
+    - name: 😈 FreeBSD 13
+      freebsd_instance:
+        cpu: 4
+        memory: 8G
+        image_family: freebsd-13-1
+
+    - name: 😈 ASAN
+      freebsd_instance:
+        cpu: 8
+        memory: 8G
+        image_family: freebsd-13-1
+      env:
+        ENABLE_ASAN: ON
+
+  install_script:
+    - pkg update -f
+    - pkg upgrade -y
+    - >
+      pkg install -y
+      bison
+      cmake
+      dbus
+      flex
+      gcc12
+      git
+      libgit2
+      llvm12
+      ninja
+      pkgconf
+      xfce4-conf
+      yajl
+      yaml-cpp
+
+  script:
+    - > # We use `-std=c11`, since the header `math.h` on FreeBSD requires C11 features
+      set --
+      -DCMAKE_C_COMPILER=clang12
+      -DCMAKE_CXX_COMPILER=clang++12
+      -DBINDINGS='ALL;-io_glib'
+      -DINSTALL_SYSTEM_FILES=ON
+      -DCMAKE_SKIP_INSTALL_RPATH=ON
+      -DCOMMON_FLAGS=-Werror
+      -DC_STD=-std=c11
+      -DENABLE_ASAN="${ENABLE_ASAN:-OFF}"
+      -DPLUGINS='ALL'
+      -DTARGET_PLUGIN_FOLDER=''
+    - *print_cmake_options
+    - *generate
+    - *build
+    - *install
+
+  tests_script:
+    # Work around stalled process plugin and library problems on FreeBSD: https://issues.libelektra.org/2323
+    - sudo mount -t fdescfs fdesc /dev/fd
+    - export $(dbus-launch) # Some libraries such as xfconf require a running dbus instance
+    - *run_tests
+
+task:
+  env:
+    INSTALL_DIR: install
+    HOMEBREW_NO_INSTALL_CLEANUP: 1
+
+  matrix:
+
+    - name: 🍎 FULL
+      macos_instance:
+        image: ghcr.io/cirruslabs/macos-ventura-base:latest
+      env:
+        BUILD_FULL: ON
+        BUILD_SHARED: OFF
+        PLUGINS: ALL;-curlget;-xfconf # The curlget tests fail: https://github.com/ElektraInitiative/libelektra/issues/3382 xfce4 is uncommon on macOS
+
+  install_script:
+    - | # Install Homebrew formulas
+      brew update
+      brew config
+      brew install openjdk \
+        antlr \
+        antlr4-cpp-runtime \
+        bison \
+        clang-format \
+        dbus \
+        discount \
+        doxygen \
+        flex \
+        glib \
+        go \
+        gpgme \
+        gradle \
+        graphviz \
+        libev \
+        libgcrypt \
+        libgit2 \
+        libuv \
+        llvm \
+        lua \
+        moreutils \
+        ninja \
+        npm \
+        openssl \
+        pkg-config \
+        qt \
+        shfmt \
+        swig \
+        tree \
+        xerces-c \
+        yajl \
+        yaml-cpp \
+        zeromq
+
+    - > # Try to install `checkbashisms` (The file server that hosts the package is unfortunately quite unreliable.)
+      brew install checkbashisms || >&2 printf 'Warning: Unable to install `checkbashims`\n'
+    - | # Start D-Bus session bus
+      brew tap homebrew/services
+      brew update # Work around for [Homebrew Services issue 206](https://github.com/Homebrew/homebrew-services/issues/206)
+      brew postinstall dbus
+      brew services stop dbus; brew services start dbus # Workaround for dbus socket issues on cirrus
+      # export DBUS_LAUNCHD_SESSION_BUS_SOCKET=$(find /private/tmp/com.apple.launchd*/unix_domain_listener | xargs ls -Art | tail -n1) # workaround for cirrus
+      # launchctl setenv DBUS_LAUNCHD_SESSION_BUS_SOCKET $DBUS_LAUNCHD_SESSION_BUS_SOCKET
+      echo $DBUS_LAUNCHD_SESSION_BUS_SOCKET
+      launchctl getenv DBUS_LAUNCHD_SESSION_BUS_SOCKET
+    - | # Install Python
+      brew install python@3.11 || brew upgrade python@3.11
+      export PATH="/usr/local/opt/python@3.11/bin:$PATH"
+    - | # Install Python packages
+      pip3 install cmakelang[yaml]==0.6.13
+    - | # Install Ruby (We use the Homebrew version of Ruby to install gems, since compiling `ronn-ng` fails with the macOs version of Ruby.)
+      brew install ruby@3.0
+      export PATH="/usr/local/opt/ruby/bin:/usr/local/lib/ruby/gems/3.0.0/bin:$PATH"
+    - | # Install Ruby gems
+      sudo gem install ronn-ng -v 0.10.1.pre1
+      sudo gem install test-unit --no-document
+    - | # Install JavaScript packages
+      npm install dredd --global
+      npm install --global prettier@2.5.1
+
+  script:
+    - | # Use latest version of LLVM to translate Elektra
+      export CC="$(brew --prefix llvm)/bin/clang" CXX="$(brew --prefix llvm)/bin/clang++"
+      export LDFLAGS="-L$(brew --prefix llvm)/lib"
+      export CPPFLAGS="-I$(brew --prefix llvm)/include"
+      export PATH="$(brew --prefix llvm)/bin:$PATH"
+    - >
+      set --
+      -DBINDINGS="${BINDINGS:-ALL}"
+      -DBUILD_FULL="${BUILD_FULL:-OFF}"
+      -DBUILD_SHARED="${BUILD_SHARED:-ON}"
+      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      -DCMAKE_INSTALL_PREFIX="$CIRRUS_WORKING_DIR/$INSTALL_DIR"
+      -DCOMMON_FLAGS="${COMMON_FLAGS:--Werror}"
+      -DENABLE_ASAN="${ENABLE_ASAN:-OFF}"
+      -DENABLE_LOGGER="${ENABLE_LOGGER:-OFF}"
+      -DENABLE_DEBUG=ON
+      -DKDB_DB_FILE="${KDB_DB_FILE:-default.ecf}"
+      -DKDB_DB_INIT="${KDB_DB_INIT:-elektra.ecf}"
+      -DKDB_DB_SYSTEM="$CIRRUS_WORKING_DIR/system"
+      -DKDB_DEFAULT_STORAGE="${KDB_DEFAULT_STORAGE:-dump}"
+      -DPLUGINS="${PLUGINS:-ALL}"
+      -DTOOLS="${TOOLS:-NODEP}"
+    - *print_cmake_options
+    - *generate
+    - *build
+    - *install
+
+  tests_script:
+    # Remove files produced by `ronn-ng`, since `testscr_check_formatting` only checks the formatting, if the stating area is clean
+    - git checkout .
+    - export PATH=$PATH:"$CIRRUS_WORKING_DIR/$INSTALL_DIR/bin:/usr/local/opt/llvm/bin"
+    - *run_tests
+    - | # Uninstall Elektra
+      output="$(cmake --build "$BUILD_DIR" --target uninstall 2>&1)" || printf '%s' "$output"
+    - | # Make sure uninstalling removes all files
+      if find "$INSTALL_DIR" -name '*' -not -name "$INSTALL_DIR" | grep -Eqv '^.$'; then
+        printf 'The command `cmake --build "%s" --target uninstall` did not uninstall all files:\n' "$BUILD_DIR"
+        tree "$INSTALL_DIR"
+        printf '. Please add the files shown above to `ElektraUninstall.cmake`.\n'
+        false
+      fi
+
+task:
+  matrix:
+
+    - name: 🐧 Fedora amd64
+      container:
+          cpu: 8
+          memory: 16G
+          dockerfile: scripts/docker/cirrus/fedora/Dockerfile
+
+  script:
+    - >
+      set --
+      -DBUILD_FULL=ON
+      -DBUILD_SHARED=ON
+      -DBUILD_STATIC=ON
+      -DENABLE_LOGGER=ON
+      -DENABLE_DEBUG=ON
+      -DBINDINGS='ALL'
+      -DPLUGINS='ALL'
+      -DTOOLS='ALL'
+      -DKDB_DB_SYSTEM="$CIRRUS_WORKING_DIR/system"
+      -DCMAKE_INSTALL_PREFIX="$CIRRUS_WORKING_DIR/install"
+    - *print_cmake_options
+    - *generate
+    - *build
+    - *install
+
+  tests_script:
+    - export PATH=$PATH:"$CIRRUS_WORKING_DIR/install/bin"
+    - export LUA_CPATH="${CIRRUS_WORKING_DIR}/install/lib/lua/5.2/?.so;"
+    - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:"$CIRRUS_WORKING_DIR/install/lib"
+    - export $(dbus-launch) # Some libraries such as xfconf require a running dbus instance
+    - *run_tests
+
+task:
+  matrix:
+
+    - name: 🔗 Check
+      container:
+          cpu: 2
+          memory: 4G
+          dockerfile: scripts/docker/cirrus/arch/Dockerfile
+
+  clone_script: |
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git \
+                $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git config user.email "nobody@example.com"
+      git config user.name "nobody"
+      git merge --no-commit --no-ff $CIRRUS_CHANGE_IN_REPO
+    fi
+
+  script:
+    - >
+      set --
+      -DBUILD_FULL=OFF
+      -DBUILD_SHARED=OFF
+      -DBUILD_STATIC=OFF
+      -DBUILD_TESTING=OFF
+    - *generate
+    - cmake --build "$BUILD_DIR" 2>&1 | grep 'warning: invalid link' > broken_links.txt || true
+    - scripts/link-checker build/external-links.txt 2>> broken_links.txt > /dev/null
+
+  tests_script:
+    - |
+      if test -s broken_links.txt; then
+        printf >&2 'Broken Links:\n'
+        printf >&2 '—————————————\n'
+        cat >&2 broken_links.txt
+        printf >&2 '—————————————\n'
+        false
+      fi
+
+task:
+  matrix:
+
+    - name: 📄 Check
+      container:
+        cpu: 2
+        memory: 4G
+        dockerfile: scripts/docker/cirrus/arch/Dockerfile
+
+  clone_script: |
+    if [ -z "$CIRRUS_PR" ]; then
+      git clone --branch=$CIRRUS_BRANCH https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git \
+                $CIRRUS_WORKING_DIR
+      git reset --hard $CIRRUS_CHANGE_IN_REPO
+    else
+      git clone https://x-access-token:${CIRRUS_REPO_CLONE_TOKEN}@github.com/${CIRRUS_REPO_FULL_NAME}.git $CIRRUS_WORKING_DIR
+      git fetch origin pull/$CIRRUS_PR/head:pull/$CIRRUS_PR
+      git config user.email "nobody@example.com"
+      git config user.name "nobody"
+      git merge --no-commit --no-ff $CIRRUS_CHANGE_IN_REPO
+    fi
+
+  script:
+    - *generate
+    - scripts/dev/filename-checker 2> bad_file_names.txt > /dev/null
+
+  tests_script:
+    - |
+      if test -s bad_file_names.txt; then
+        printf >&2 '—————————————\n'
+        cat >&2 bad_file_names.txt
+        printf >&2 '—————————————\n'
+        false
+      fi
+
+
+task:
+  matrix:
+
+    - name: 📚 Check
+      container:
+          cpu: 6
+          memory: 8G
+          dockerfile: scripts/docker/cirrus/arch/Dockerfile
+
+  script:
+    - >
+      set --
+      -DBUILD_PDF=ON
+      -DPLUGINS='dump;list;resolver_fm_hpu_b;spec;sync;yajl'
+      -DTOOLS='ALL'
+    - *generate
+    - *build
+
+  tests_script:
+    - |
+      git_diff_output="$(git diff -p 2>&1)"
+      if [ -n "$git_diff_output" ]; then
+        printf >&2 -- 'It looks like you modified a source file of a man page, but did not commit the updated man page.\n'
+        printf >&2 -- 'Please either:\n\n'
+        printf >&2 -- '- build the man pages with `ronn-ng` and commit the result, or\n'
+        printf >&2 -- '- use the `patch` command after this message to update the man pages.\n\n'
+        printf >&2 -- 'For the second option, please\n\n'
+        printf >&2 -- '1. copy the lines between the long dashes (`—`), and\n'
+        printf >&2 -- '2. store them in a file called `man.patch` **in the root of the repository**.\n\n'
+        printf >&2 -- 'After that use the command:\n\n'
+        printf >&2 -- '\tcat man.patch | patch -p1\n\n'
+        printf >&2 -- 'to apply the changes.\n'
+        printf >&2 -- '\n\n————————————————————————————————————————————————————————————\n\n'
+        printf >&2 -- '%s' "$git_diff_output"
+        printf >&2 -- '\n\n————————————————————————————————————————————————————————————\n\n'
+        false
+      fi

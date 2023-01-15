@@ -1,0 +1,1000 @@
+#!/bin/sh
+
+# please always adjust the length of file to be 1000 lines
+#
+# This file is auto generated, do not modify it or your changes
+# might be lost.
+#
+# shell test suite v0.6 for kdb command
+
+#
+# VARIABLES
+#
+
+NEWLINE='
+'
+
+# variables to count up errors and tests
+nbError=0
+nbTest=0
+nbSkip=0
+
+# the script itself
+scriptName=$(basename "$0")
+
+export PKG_CONFIG_PATH="@CMAKE_INSTALL_PREFIX@/lib@LIB_SUFFIX@/@TARGET_PKGCONFIG_FOLDER@":$PKG_CONFIG_PATH
+
+MOUNTPOINT="/tests/script"
+
+NAMESPACES="user system"
+
+USER_ROOT="user:/tests/script"
+SYSTEM_ROOT="system:/tests/script"
+SPEC_ROOT="spec:/tests/script"
+
+IS_INSTALLED=@IS_INSTALLED@
+if [ "x$IS_INSTALLED" = "xYES" ]; then
+	DATADIR="@CMAKE_INSTALL_PREFIX@/@TARGET_TEST_DATA_FOLDER@/shell"
+else
+	DATADIR="@CMAKE_CURRENT_SOURCE_DIR@/shell"
+fi
+
+USER="$(id -un)"
+GROUP="$(id -gn)"
+
+SYSTEM_FOLDER="@KDB_DB_SYSTEM@"
+SPEC_FOLDER="@KDB_DB_SPEC@"
+if [ -n "$HOME" ]; then
+	USER_FOLDER="$HOME/@KDB_DB_USER@"
+else
+	USER_FOLDER="@KDB_DB_HOME@/$USER/@KDB_DB_USER@"
+fi
+PLUGINS=$(echo "@ADDED_PLUGINS@" | tr ';' ' ')
+ADDED_PLUGINS_WITHOUT_ONLY_SHARED=$(echo "@ADDED_PLUGINS_WITHOUT_ONLY_SHARED@" | tr ';' ' ')
+PLUGINS_NEWLINES=$(echo "@ADDED_PLUGINS@" | tr ';' '\n')
+
+DATE=$(date "+%b %d %H:%M")
+
+KDB_DEFAULT_STORAGE="@KDB_DEFAULT_STORAGE@"
+KDB_DEFAULT_RESOLVER="@KDB_DEFAULT_RESOLVER@"
+
+if [ -z "${KDB}" ]; then
+	KDB="@KDB_COMMAND@"
+fi
+
+KDB_GETENV=$("$KDB" elektrify-getenv getenv KDB 2> /dev/null)
+
+if [ $? = 0 ]; then
+	KDB=${KDB_GETENV}
+fi
+
+# ensure ruby plugin finds Ruby bindings without installation
+# (require both the src and the build dir)
+export RUBYLIB="@CMAKE_SOURCE_DIR@/src/bindings/swig/ruby:@CMAKE_BINARY_DIR@/src/bindings/swig/ruby"
+export SAVE=0 # some Rubies do not accept RUBYLIB if SAVE is not 0
+
+#
+# HELPER
+#
+
+# POSIX way to test if string contains substring
+contains() {
+	string="$1"
+	substring="$2"
+	test "${string#*$substring}" != "$string"
+}
+
+#
+# ASSERTIONS
+#
+
+#succeed if the previous command was successful
+succeed_if() {
+	if [ $? != "0" ]; then
+		nbError=$((nbError + 1))
+		echo "error: $*"
+	fi
+	nbTest=$((nbTest + 1))
+}
+
+#fails and exits the program if the previous command failed
+exit_if_fail() {
+	if [ $? != "0" ]; then
+		if command -v cleanup > /dev/null; then
+			echo "fatal: $*"
+			cleanup
+		else
+			echo "fatal (no cleanup necessary): $*"
+		fi
+		exit 1
+	fi
+	nbTest=$((nbTest + 1))
+}
+
+end_script() {
+	if command -v cleanup > /dev/null; then
+		cleanup
+	fi
+
+	printf "$scriptName RESULTS: $nbTest test(s) done"
+	if [ $nbSkip -ne 0 ]; then
+		printf " $nbSkip skipped"
+	fi
+	echo " $nbError error(s)."
+	exit "$nbError"
+}
+
+#
+# COMMON CHECKS
+#
+KDB_VERSION="@KDB_VERSION@"
+SO_VERSION="@SO_VERSION@"
+
+check_version() {
+	echo "Check if script tests the correct version"
+
+	if [ "x$("$KDB" elektrify-getenv getenv CHECK_VERSION 2> /dev/null)" = "xNO" ]; then
+		return 0
+	fi
+
+	#if no kdb elektrify-getenv getenv is installed:
+	if [ "x$CHECK_VERSION" = "xNO" ]; then
+		return 0
+	fi
+
+	REAL_KDB_VERSION="$("$KDB" get system:/elektra/version/constants/KDB_VERSION 2> /dev/null)"
+	[ "x$REAL_KDB_VERSION" = "x$KDB_VERSION" ]
+	exit_if_fail "Script was not compiled ($KDB_VERSION) with this Elektra version ($REAL_KDB_VERSION): KDB_VERSION mismatch for kdb-tool ($KDB), use CHECK_VERSION=NO to disable"
+
+	REAL_SO_VERSION="$("$KDB" get system:/elektra/version/constants/SO_VERSION 2> /dev/null)"
+	[ "x$REAL_SO_VERSION" = "x$SO_VERSION" ]
+	exit_if_fail "Script was not compiled ($SO_VERSION) with this Elektra version ($REAL_SO_VERSION): SO_VERSION mismatch for kdb-tool ($KDB), use CHECK_VERSION=NO to disable"
+}
+
+check_remaining_files() {
+	USER_REMAINING="$(find "$USER_FOLDER" -maxdepth 1 -name "$1"'*' -print -quit)"
+	test -z "$USER_REMAINING"
+	exit_if_fail "files $USER_REMAINING in $USER_FOLDER would be removed during tests, so test is aborted"
+
+	SYSTEM_REMAINING="$(find "$SYSTEM_FOLDER" -maxdepth 1 -name "$1"'*' -print -quit)"
+	test -z "$SYSTEM_REMAINING"
+	exit_if_fail "files $SYSTEM_REMAINING in $SYSTEM_FOLDER would be removed during tests, so test is aborted"
+}
+
+check_set_rm() {
+	"$KDB" set "$1" "$2" 1> /dev/null
+	succeed_if "could not set $1 with $2"
+
+	[ "x$("$KDB" get "$1" 2> /dev/null)" = "x$2" ]
+	succeed_if "cant get $1 (expected $2)"
+
+	"$KDB" rm "$1" 1> /dev/null
+	succeed_if "could not rm $1 (having value $2)"
+
+	[ "x$("$KDB" sget "$1" defvalue 2> /dev/null)" = "xdefvalue" ]
+	succeed_if "Value still there after remove"
+}
+
+check_set_mv_rm() {
+	"$KDB" set "$1" "$3" 1> /dev/null
+	succeed_if "could not set $1 with $3"
+
+	[ "x$("$KDB" get "$1" 2> /dev/null)" = "x$3" ]
+	succeed_if "cant get $1 (expected $3)"
+
+	"$KDB" mv "$1" "$2" 1> /dev/null
+	succeed_if "could not mv $1 to $2"
+
+	[ "x$("$KDB" sget "$1" defvalue 2> /dev/null)" = "xdefvalue" ]
+	succeed_if "Value still there after move"
+
+	[ "x$("$KDB" get "$2" 2> /dev/null)" = "x$3" ]
+	succeed_if "cant get $2 (expected $3)"
+
+	"$KDB" rm "$2" 1> /dev/null
+	succeed_if "could not rm $2 (having value $3)"
+
+	[ "x$("$KDB" sget "$2" defvalue 2> /dev/null)" = "xdefvalue" ]
+	succeed_if "Value still there after remove"
+}
+
+#
+# COMMON UTILITIES
+#
+
+is_not_rw_storage() {
+	echo $("$KDB" plugin-info "$PLUGIN" provides 2> /dev/null) | grep -F -qw "storage"
+	if [ $? != 0 ]; then
+		return 0
+	fi
+
+	test "x$PLUGIN" = "xhosts" \
+		-o "x$PLUGIN" = "xfstab" \
+		-o "x$PLUGIN" = "xline" \
+		-o "x$PLUGIN" = "xuname" \
+		-o "x$PLUGIN" = "xconstants" \
+		-o "x$PLUGIN" = "xaugeas" \
+		-o "x$PLUGIN" = "xcsvstorage" \
+		-o "x$PLUGIN" = "xdpkg" \
+		-o "x$PLUGIN" = "xpasswd" \
+		-o "x$PLUGIN" = "xmozprefs" \
+		-o "x$PLUGIN" = "xfile" \
+		-o "x$PLUGIN" = "xruby" \
+		-o "x$PLUGIN" = "xdesktop" \
+		-o "x$PLUGIN" = "xc" \
+		-o "x$PLUGIN" = "xcpptemplate" \
+		-o "x$PLUGIN" = "xspecload" \
+		-o "x$PLUGIN" = "xmmapstorage" \
+		-o "x$PLUGIN" = "xmmapstorage_crc" \
+		-o "x$PLUGIN" = "xmultifile" \
+		-o "x$PLUGIN" = "xsimpleini" \
+		-o "x$PLUGIN" = "xmini" \
+		-o "x$PLUGIN" = "xyamlcpp" \
+		-o "x$PLUGIN" = "xkconfig" \
+		-o "x$PLUGIN" = "xtoml" \
+		-o "x$PLUGIN" = "xxfconf"
+}
+
+is_plugin_available() {
+	for PLUGIN in $PLUGINS; do
+		if [ "x$1" = "x$PLUGIN" ]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
+mktempdir_elektra() {
+	mktemp -d 2> /dev/null || mktemp -d -t 'libelektra-test'
+}
+
+mktempfile_elektra() {
+	mktemp -t elektraenv.XXXXXXXXX 2> /dev/null || mktemp -t 'elektraenv'
+}
+
+replace_newline_return() {
+	awk '{if (NR>1) {printf("%s⏎", line);} line=$0;} END { printf("%s\n", line); }'
+}
+
+printerr() {
+	printf >&2 "$@"
+}
+
+#
+# EXPORT FUNCTIONS
+#
+
+check_failed() {
+	EXPORTS=$1
+	TESTNAME=$2
+	CONFIGNAME=$3
+
+	echo "$TESTNAME did not leave $CONFIGNAME config in the same state at is was before!"
+	echo "This means the test itself is flawed or the KDB was externally modified while the tests were running!"
+	echo "You can inspect the original $CONFIGNAME config in $EXPORTS/$CONFIGNAME.export.dump"
+	echo "compared to situation now in $EXPORTS/$CONFIGNAME.check.dump"
+	echo
+	echo "Other important recovery files are also in the directory $EXPORTS"
+	echo "Please remove the $EXPORTS directory yourself after you fixed the situation, I cannot do it for you"
+	exit 1
+}
+
+export_config() {
+	EXPORTS=$1
+
+	if [ ! -d "$EXPORTS" ]; then
+		echo "Failed to create directory “$EXPORTS”"
+		exit 1
+	fi
+
+	SPECEXPORT="$EXPORTS/spec.export.dump"
+	DIREXPORT="$EXPORTS/dir.export.dump"
+	USEREXPORT="$EXPORTS/user.export.dump"
+	SYSTEMEXPORT="$EXPORTS/system.export.dump"
+	MOUNTEXPORT="$EXPORTS/mount.export.dump"
+
+	"$KDB" export spec:/ dump > "$SPECEXPORT"
+	exit_if_fail "Could not export spec config"
+
+	"$KDB" export dir:/ dump > "$DIREXPORT"
+	exit_if_fail "Could not export dir config"
+
+	"$KDB" export user:/ dump > "$USEREXPORT"
+	exit_if_fail "Could not export user config"
+
+	"$KDB" export system:/ --without-elektra dump > "$SYSTEMEXPORT"
+	exit_if_fail "Could not export system config"
+
+	"$KDB" export system:/elektra/mountpoints dump > "$MOUNTEXPORT"
+	exit_if_fail "Could not export mount config"
+}
+
+export_check() {
+	EXPORTS=$1
+	TESTNAME=$2
+	IMPORTCONFIG=$3
+
+	SPECEXPORT="$EXPORTS/spec.export.dump"
+	SPECCHECK="$EXPORTS/spec.check.dump"
+
+	DIREXPORT="$EXPORTS/dir.export.dump"
+	DIRCHECK="$EXPORTS/dir.check.dump"
+
+	USEREXPORT="$EXPORTS/user.export.dump"
+	USERCHECK="$EXPORTS/user.check.dump"
+
+	SYSTEMEXPORT="$EXPORTS/system.export.dump"
+	SYSTEMCHECK="$EXPORTS/system.check.dump"
+
+	MOUNTEXPORT="$EXPORTS/mount.export.dump"
+	MOUNTCHECK="$EXPORTS/mount.check.dump"
+
+	"$KDB" export spec:/ dump > "$SPECCHECK"
+	exit_if_fail "Could not export spec config"
+
+	"$KDB" export dir:/ dump > "$DIRCHECK"
+	exit_if_fail "Could not export dir config"
+
+	"$KDB" export user:/ dump > "$USERCHECK"
+	exit_if_fail "Could not export user config"
+
+	"$KDB" export system:/ --without-elektra dump > "$SYSTEMCHECK"
+	exit_if_fail "Could not export system config"
+
+	"$KDB" export system:/elektra/mountpoints dump > "$MOUNTCHECK"
+	exit_if_fail "Could not export mount config"
+
+	if [ "$IMPORTCONFIG" = 'true' ]; then
+		"$KDB" import spec:/ dump < "$SPECEXPORT"
+		exit_if_fail "Could not import spec config"
+
+		"$KDB" import dir:/ dump < "$DIREXPORT"
+		exit_if_fail "Could not import dir config"
+
+		"$KDB" import user:/ dump < "$USEREXPORT"
+		exit_if_fail "Could not import user config"
+
+		"$KDB" import system:/ --without-elektra dump < "$SYSTEMEXPORT"
+		exit_if_fail "Could not import system config"
+
+		"$KDB" import system:/elektra/mountpoints dump < "$MOUNTEXPORT"
+		exit_if_fail "Could not import mount config"
+	fi
+
+	diff "$SPECEXPORT" "$SPECCHECK"
+	if [ $? != "0" ]; then
+		check_failed "$EXPORTS" "$TESTNAME" spec
+	fi
+
+	diff "$DIREXPORT" "$DIRCHECK"
+	if [ $? != "0" ]; then
+		check_failed "$EXPORTS" "$TESTNAME" dir
+	fi
+
+	diff "$USEREXPORT" "$USERCHECK"
+	if [ $? != "0" ]; then
+		check_failed "$EXPORTS" "$TESTNAME" user
+	fi
+
+	diff "$SYSTEMEXPORT" "$SYSTEMCHECK"
+	if [ $? != "0" ]; then
+		check_failed "$EXPORTS" "$TESTNAME" system
+	fi
+
+	diff "$MOUNTEXPORT" "$MOUNTCHECK"
+	if [ $? != "0" ]; then
+		check_failed "$EXPORTS" "$TESTNAME" mount
+	fi
+}
+
+### END OF INCLUDE FILE ###
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+# empty lines up to 1000 so that line numbers in the resulting scripts are more useful

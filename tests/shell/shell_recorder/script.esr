@@ -1,0 +1,26 @@
+Storage: dump
+Mountpoint: system:/tests/script
+File: /tmp/test.dump
+MountArgs:
+DiffType: File
+
+< kdb set $Mountpoint/test bla
+
+RET: 0
+< kdb mount $File $Mountpoint $Storage
+
+RET: 0
+< kdb set $Mountpoint teststring
+
+< kdb set $Mountpoint/testkey testval
+
+< kdb get $Mountpoint/testkey
+
+STDOUT-REGEX: test.?ey
+< kdb ls $Mountpoint
+
+< kdb meta-set $Mountpoint/testkey metacomment "comment blaa"
+
+< kdb get $Mountpoint/michgibtsgarnicht
+
+< kdb umount $Mountpoint

@@ -1,0 +1,95 @@
+This is a list of TODO items which do not fit in
+the other TODO categories.
+
+
+== VARIANTS ==
+
+for python plugin
+ - fix symbol generator
+ - avoid full/static for symbol clashes
+
+
+== errno ==
+
+better errnostore solution?
+	reset errno in user functions and avoid code in every plugin
+	always provide last errno in ADD_WARNING+SET_ERROR
+	use safe implementation see
+	https://github.com/fish-shell/fish-shell/commit/c70e92e98d34e14b1e1310a10677b7c0f6e2b54c
+	(even strerrno_r seems to deadlock from time to time because of translations?)
+
+
+== inotify ==
+
+get list of involved configuration files and do inotify on it
+
+
+== ALGORITHM ==
+
+
+aka distributor+filebackend plugin
+(currently directly in core)
+change to proper 2phase algorithm?
+
+kdbGet
+* only run on those parts where needed (not only shortcut on nothing changed)
+* create an error if no kdbGet was done (no plugin added)
+
+kdbSet
+* do not run on empty configuration
+* but remove config file instead
+* create an error if no kdbSet was done (no plugin added)
+
+
+
+
+
+== DATA STRUCTURES ==
+
+Only implement what is really needed.
+(can take some time to do it well!)
+See also OPTIMISE
+
+ksForEach (ks, func, handle)
+	void func (Key*, void* handle);
+	also with lambdas in c++ (check if external loop is faster?)
+
+ksLookup: value keys only
+	with relations
+	only in the same folder (sibling)
+	only below the current folder (below)
+
+merge + split configuration
+http://en.wikipedia.org/wiki/Set_(mathematics)
+
+allow to change behaviour of keyset using callbacks:
+	collect statistics which keys were used and modified how often
+	allow tracing of individual (non-removed) keys
+
+KeySet* ksUnion
+ksIntersection
+ksMerge
+
+http://en.wikipedia.org/wiki/Complement_(set_theory)
+ksComplement (Difference, SymmetricDifference)
+
+ksCopy -> ksAssign
+ksPopCurrent
+
+InsertIterator
+	ksAppend() in O(1)
+	KDB_O_NOALL could use binary search
+
+AccessIterator
+	not integrated
+	ksCurrent only for iterator
+	feature for error handling needed?
+	functors and same level iterators build on top of it
+
+=== Data transformation ===
+
+use Key's refcount to put it into different data structures
+
+- property tree
+- json objects
+

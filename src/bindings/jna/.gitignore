@@ -1,0 +1,14 @@
+# ignore java class files
+*.class
+
+# ignore secret settings
+secret-settings.gradle
+
+# ignore gradle cache
+/.gradle
+
+# ignore eclipse project files
+.project
+.classpath
+bin
+.settings

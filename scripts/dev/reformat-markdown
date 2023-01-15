@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# @author René Schwaiger <sanssecours@me.com>
+# @brief Reformat Markdown files
+# @date 13.02.2019
+# @tags reformat
+
+SCRIPTS_DIR=$(dirname "$0")
+. "${SCRIPTS_DIR}/include-common"
+
+cd "$SOURCE" || {
+	printf 'Unable to change into source directory'
+	exit 1
+}
+
+NPX="$(which npx)"
+
+if [ -z "${NPX}" ]; then
+	printf 2>&1 'Please install `npx` (Included in npm >= 5.2.0)\n'
+	exit 1
+fi
+
+if [ $# -gt 0 ]; then
+	markdown_files=$(printf "%s\n" "$@" | grep -x '.*\.md')
+	if [ -z "$markdown_files" ]; then
+		exit 0
+	fi
+else
+	markdown_files=$(git ls-files '*.md')
+fi
+printf "%s\n" "$markdown_files" | sed -nE 's/(.*)/'"'"'\1'"'"'/p' | xargs "${NPX}" --quiet prettier@2.5.1 --write -- > /dev/null
