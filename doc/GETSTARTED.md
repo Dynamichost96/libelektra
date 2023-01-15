@@ -6,20 +6,20 @@ This document is intended for developers who want to get started with developing
 
 - Operating system
 
-  We recommend a Unix-based operating system to run Elektra (Linux, BSD, macOS) but it's also possible to use Windows which is supported but not yet fully tested.
+  We recommend a Unix-based operating system to run Elektra (Linux, BSD, macOS) but [it's also possible to use Windows which is supported but not yet fully tested](https://www.libelektra.org/tutorials/contributing-with-visual-studio-windows).
 
 - Using command-line interface and commands
 
-  The easiest way to compile, install and use Elektra is by using the terminal. We will introduce the basic commands which you will need to run Elektra for the very first time.
+  The easiest way to compile, install and use Elektra is by using the terminal. We will introduce the basic commands which you will need to run Elektra for the very first time. [It's also possible to use CLion](https://www.libelektra.org/tutorials/contributing-with-clion)
 
 - Basic knowledge about git
 
-  Don't panic! [GIT](https://git-scm.com/) is a distributed version control system to track changes of the source code in a project. We will use a single GIT command to get
+  [Git](https://git-scm.com/) is a distributed version control system to track changes of the source code in a project. We will use a single Git command to get
   the source code of Elektra.
 
-- Basic knowledge about make/cmake
+- Basic knowledge about make/CMake
 
-  [make](https://www.gnu.org/software/make/) or [cmake](https://cmake.org/) are used to generate an executable program from the code.
+  Don't panic! [make](https://www.gnu.org/software/make/) or [CMake](https://cmake.org/) are used to generate an executable program from the code.
   If you are not used to these tools, it's not a problem, we will introduce them to you in later sections.
 
 - We also need your skill set to improve Elektra
@@ -28,7 +28,7 @@ This document is intended for developers who want to get started with developing
 
 ## Software requirements
 
-We need to install some basic tools to run Elektra: cmake, git and essential build tools (make, gcc, and some standard Unix tools;
+We need to install some basic tools to run Elektra: CMake, Git and essential build tools (make, gcc, and some standard Unix tools;
 alternatively [ninja](https://ninja-build.org/) and [clang](https://clang.llvm.org/index.html) are also supported but not described here).
 Depending on your Linux distribution use the following commands to install these tools:
 
@@ -43,7 +43,7 @@ sudo yum install -y cmake git gcc-c++
 ```
 
 Or on macOS, most of the build tools can be obtained by installing [Xcode](https://developer.apple.com/xcode/). Other required tools may be installed using [brew](https://brew.sh/).
-First, install brew as described on their website. Then issue the following command to get cmake to complete the basic requirements:
+First, install brew as described on their website. Then issue the following command to get CMake to complete the basic requirements:
 
 ```sh
 brew install cmake git
@@ -158,7 +158,11 @@ Note that when we set a value the namespace of the key should be specified expli
 If we don't give a proper namespace (like in the get example above) a so-called [cascading lookup](/doc/tutorials/cascading.md) is done.
 However, cascading lookups during `kdb set` only work, if there is already an existing value (i.e. there is no ambiguity which key we want to set).
 
-## Hello World!
+## Further Reading
 
 Start with your very first Elektra application in C and follow these steps:
 [Hello World!](/doc/tutorials/hello-elektra.md)
+
+Modify the [website](https://www.libelektra.org/home) with the following [tutorial](/src/tools/website/). The website is build with angular and hosted with grunt.
+
+Also take a look at the [webui](/src/tools/webui/).

@@ -31,10 +31,14 @@ This folder contains documentation for “Elektra – the configuration framewor
 - [Metadata](METADATA.ini): This document specifies data about the KDB (meta information), like supported data types and configuration options.
 - [Contract](CONTRACT.ini): The plugin contract specifies keys and values that an [Elektra plugin](../src/plugins) provides.
 
+## Elektra Internals
+
+- [Copy-on-write](contrib/copy_on_write.md): This document gives a technical overview over our copy-on-write implementation for `Key` and `KeySet`.
+
 ## Contributing
 
 - [Coding](CODING.md): The coding guidelines describe the basic rules you should keep in mind when you want to contribute code to Elektra.
-- [Git](GIT.md): This document describes how we use the version control system [git](https://git-scm.com) to develop Elektra.
+- [Git](Git.md): This document describes how we use the version control system [Git](https://git-scm.com) to develop Elektra.
 - [Ideas](IDEAS.md): If you want to contribute to Elektra and do not know what, you can either take a look here or at our [issue tracker](http://libelektra.org/issues).
 - [ToDo](todo): This folder contains various ToDo items for future releases of Elektra.
 - [Authors](AUTHORS.md): This file lists information about Elektra’s authors.

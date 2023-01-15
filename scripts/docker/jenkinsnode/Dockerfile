@@ -7,6 +7,7 @@ RUN apt-get -y install \
   clang \
   cmake \
   curl \
+  dbus-x11 \
   dh-lua \
   discount \
   git \
@@ -26,6 +27,7 @@ RUN apt-get -y install \
   libuv1-dev \
   libuv1-dev \
   libxerces-c-dev \
+  libxfconf-0-dev \
   libyajl-dev \
   libzmq3-dev \
   openjdk-11-jdk-headless \
@@ -85,7 +87,7 @@ RUN service ssh start
 CMD ["/usr/sbin/sshd", "-D", "-e"]
 
 # download and install gradle
-RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.4-bin.zip && unzip gradle-7.4-bin.zip && rm gradle-7.4-bin.zip && mv gradle-7.4 /opt/gradle
+RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.5.1-bin.zip && unzip gradle-7.5.1-bin.zip && rm gradle-7.5.1-bin.zip && mv gradle-7.5.1 /opt/gradle
 ENV PATH "${PATH}:/opt/gradle/bin"
 
 USER jenkins:jenkins

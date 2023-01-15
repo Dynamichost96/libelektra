@@ -46,6 +46,10 @@ for PLUGIN in $ACTUAL_PLUGINS; do
 		# output on open/close
 		continue
 		;;
+	"xfconf")
+		# dbus is not enabled on internal checks
+		continue
+		;;
 	"spec")
 		# hook - no placement
 		continue
@@ -65,7 +69,7 @@ for PLUGIN in $ACTUAL_PLUGINS; do
 	ASAN='@ENABLE_ASAN@'
 	if [ "$ASAN" = 'ON' ]; then
 		# Do not check plugins with known memory leaks in ASAN enabled build
-		"$KDB" plugin-info "$PLUGIN" status 2> /dev/null | egrep -q 'memleak' && continue
+		"$KDB" plugin-info "$PLUGIN" status 2> /dev/null | grep -E -q 'memleak' && continue
 
 		case "$PLUGIN" in
 		'augeas') # Reference: https://travis-ci.org/sanssecours/elektra/jobs/418524229
@@ -74,12 +78,13 @@ for PLUGIN in $ACTUAL_PLUGINS; do
 		esac
 	fi
 
-	> $FILE
+	: > "$FILE"
+	# shellcheck disable=SC2086
 	"$KDB" plugin-check $ARGS "$PLUGIN" 1> "$FILE" 2> "$FILE"
 	succeed_if "check of plugin $PLUGIN with args '$ARGS' failed"
 
-	test ! -s $FILE
-	succeed_if "check of plugin $PLUGIN produced: \"$(cat $FILE)\""
+	test ! -s "$FILE"
+	succeed_if "check of plugin $PLUGIN produced: \"$(cat "$FILE")\""
 done
 
 end_script basic commands

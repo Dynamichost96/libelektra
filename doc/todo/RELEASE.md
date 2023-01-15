@@ -36,6 +36,7 @@ If no release critical problems are found during testing, continue.
 ### Check
 
 - https://build.libelektra.org/job/libelektra/job/master/ must pass
+- Run [audit-dependencies](/scripts/dev/audit-dependencies) to make sure no known vulnerabilities exist in project dependencies
 
 ## When Source Code is considered ready
 
@@ -64,7 +65,7 @@ If no release critical problems are found during testing, continue.
   - [ ] Check in the (`test-*`) folders if the passed tests really were successful, i.e.:
     - [ ] do not contain error output
     - [ ] were not skipped
-- Inspect the changes to the libelektra git repository in git/master.log
+- Inspect the changes to the libelektra Git repository in git/master.log
   - [ ] Check diff of commit "release: regenerate plugins overview picture" and if
         `doc/images/plugins.pdf` was generated correctly
   - [ ] Check diff of commit "release: update plugin info status": Plugin tags should be sorted (optional commit)

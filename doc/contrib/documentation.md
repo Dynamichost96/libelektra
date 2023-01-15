@@ -7,7 +7,7 @@ Alternatively, you can directly fix it with your next PR.
 
 > **Note:**
 > It is always allowed to improve the documentation, in every PR, even if the documentation fix is completely unrelated.
-> However, separate PRs are prefered and potentially can get merged sooner.
+> However, separate PRs are preferred and can potentially get merged sooner.
 
 ## Target Groups
 
@@ -79,11 +79,11 @@ Elektra's documentation must fulfill:
   "We" refers to the community around the Elektra Initiative.
 - Use headings and lists to keep a clear structure in the text.
 - Use examples and images to emphasize important points, don't overuse emphasis in text (bold, etc.).
-- Spelling is American English with [spellings as defined here](/scripts/sed).
+- Spelling is American English with [spellings as defined here](/scripts/spelling.sed).
 - It is consistent with our [terminology](/doc/help/elektra-glossary.md).
 
 > **Note:**
-> Please extend [terminology](/doc/help/elektra-glossary.md) and [spellings](/scripts/sed) as needed.
+> Please extend [terminology](/doc/help/elektra-glossary.md) and [spellings](/scripts/spelling.sed) as needed.
 
 ## Completeness
 
@@ -116,7 +116,7 @@ Generously use links but be very careful to create a coherent documentation (Ger
 - Only use `*.libelektra.org/*` links, avoid `github.com/ElektraInitiative/*` links.
   Create an issue if redirects are missing.
   Rationale:
-  Then we can more easily move to other git hosting platforms.
+  Then we can more easily move to other Git hosting platforms.
   Redirects created for this purpose:
   - [issues.libelektra.org](https://issues.libelektra.org) for the issue tracker
   - [pulls.libelektra.org](https://pulls.libelektra.org) for pull requests

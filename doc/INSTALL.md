@@ -224,15 +224,15 @@ You can find the generated packages in the `package` directory of the build dire
 
 #### Debian/Ubuntu
 
-First make sure you have debhelper and d-shlibs installed:
+First make sure you have `debhelper` and `d-shlibs` installed:
 
 ```sh
 apt-get install debhelper d-shlibs
 ```
 
-(Otherwise you'll see an error file utility is not available, breaking CPACK_DEBIAN_PACKAGE_SHLIBDEPS and CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS.)
+(Otherwise you'll see an error file utility is not available, breaking `CPACK_DEBIAN_PACKAGE_SHLIBDEPS` and `CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS`.)
 
-On Debian-based distributions you will need to set LD_LIBRARY_PATH before generating the package.
+On Debian-based distributions you will need to set `LD_LIBRARY_PATH` before generating the package.
 Simply `cd` into the build directory and run following command:
 
 ```sh
@@ -253,12 +253,33 @@ sudo apt-get -f install
 
 #### Fedora
 
+For packaging Fedora has `rpmdevtools` as an additional dependency:
+
+```sh
+sudo yum install -y rpmdevtools
+```
+
+When configuring CMake it is also required to set the `CMAKE_BUILD_TYPE` to `Release`.
+For instance, a minimal configuration is
+
+```sh
+cmake .. -DCMAKE_BUILD_TYPE="Release"
+make package
+```
+
 To install RPM packages we recommend using `yum localinstall` since installing with `rpm` doesn't resolve missing dependencies.
 
-Run following command in the `package` directory:
+Run following command in the `build/package` directory:
 
 ```sh
 sudo yum localinstall *
+```
+
+Depending on the system configuration one might also need to configure and run `ldconfig`, for instance
+
+```sh
+sudo echo "/usr/local/lib" >> /etc/ld.so.conf
+sudo ldconfig
 ```
 
 ### make

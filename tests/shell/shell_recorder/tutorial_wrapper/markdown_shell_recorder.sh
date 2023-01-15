@@ -17,7 +17,7 @@ resetGlobals() {
 
 writeBlock() {
 	OUTFILE="$1"
-	[ -n "$RET" ] && printf 'RET: %s\n' $RET >> "$OUTFILE" || { [ -z "$ERROR" ] && printf 'RET: 0\n' >> "$OUTFILE"; }
+	[ -n "$RET" ] && printf 'RET: %s\n' "$RET" >> "$OUTFILE" || { [ -z "$ERROR" ] && printf 'RET: 0\n' >> "$OUTFILE"; }
 	[ -n "$ERROR" ] && printf 'ERROR: %s\n' "$ERROR" >> "$OUTFILE"
 	[ -n "$WARNINGS" ] && printf 'WARNINGS: %s\n' "$WARNINGS" >> "$OUTFILE"
 	[ -n "${STDERR+unset}" ] && printf 'STDERR: %s\n' "$STDERR" >> "$OUTFILE"
@@ -35,7 +35,7 @@ writeBlock() {
 		MATCH_SEPARATION='[ \t]+[''"]?'
 		MATCH_NAMESPACE='(/[^/]+|[^/]+/[^/]+)'
 		NAMESPACE=$(printf '%s' "$cmd" | sed -nE "s~.*$MATCH_COMMAND$MATCH_OPTIONS$MATCH_SEPARATION$MATCH_NAMESPACE.*~\5~p")
-		if [ -n "$NAMESPACE" ] && printf '%s' "$NAMESPACE" | egrep -vq '(dir:|system:|spec:|user:)?/(tests|elektra)'; then
+		if [ -n "$NAMESPACE" ] && printf '%s' "$NAMESPACE" | grep -E -vq '(dir:|system:|spec:|user:)?/(tests|elektra)'; then
 			printerr 'The command “%s” stores data outside of `/tests` at “%s”!\n' "$COMMAND" "$NAMESPACE"
 			SHELL_RECORDER_ERROR=1
 		fi
@@ -93,10 +93,10 @@ translate() {
 		if [ -n "$line" ]; then
 			[ -n "$COMMAND" ] && writeBlock "$TMPFILE"
 			COMMAND=$(printf '%s' "$line" | grep -Eo '[^ \t].*')
-			printf '%s' "$line" | egrep -q '\\$' && COMMAND=$(printf '%s' "$COMMAND" | sed 's/.$//')
-			while printf '%s' "$line" | egrep -q '\\$'; do
+			printf '%s' "$line" | grep -E -q '\\$' && COMMAND=$(printf '%s' "$COMMAND" | sed 's/.$//')
+			while printf '%s' "$line" | grep -E -q '\\$'; do
 				read -r line
-				if printf '%s' "$line" | egrep -q '\\$'; then
+				if printf '%s' "$line" | grep -E -q '\\$'; then
 					COMMAND=$(printf '%s\n%s' "$COMMAND" $(printf '%s' "$line" | sed 's/.$//'))
 				else
 					COMMAND=$(printf '%s\n%s\n' "$COMMAND" "$line")

@@ -9,6 +9,11 @@ echo
 echo "Deprecated and will be removed soon"
 exit
 
+if ! command -v realpath; then
+	echo "realpath is not installed, will skip"
+	exit 0
+fi
+
 if pkg-config elektra; then
 	echo "Installed Elektra will be used"
 else
@@ -83,7 +88,7 @@ HEAVY_MATERIAL_LIFT_MOUNTPOINT=/test/heavy_material_lift
 "$KDB" mount $HEAVY_MATERIAL_LIFT_FILE $HEAVY_MATERIAL_LIFT_MOUNTPOINT ni 1> /dev/null
 succeed_if "could not mount: $HEAVY_MATERIAL_LIFT_FILE at $HEAVY_MATERIAL_LIFT_MOUNTPOINT"
 
-cd "$GEN_FOLDER"
+cd "$GEN_FOLDER" || exit
 
 BUILD_DIR="@CMAKE_BINARY_DIR@" make CC="${CC}" CXX="${CXX}"
 
@@ -349,7 +354,7 @@ succeed_if "could not umount $PERSON_LIFT_MOUNTPOINT"
 "$KDB" umount $HEAVY_MATERIAL_LIFT_MOUNTPOINT > /dev/null
 succeed_if "could not umount $HEAVY_MATERIAL_LIFT_MOUNTPOINT"
 
-rm -f $USER_FOLDER/test_*lift.ini
-rm -f $SYSTEM_FOLDER/test_*lift.ini
+rm -f "$USER_FOLDER"/test_*lift.ini
+rm -f "$SYSTEM_FOLDER"/test_*lift.ini
 
 end_script gen

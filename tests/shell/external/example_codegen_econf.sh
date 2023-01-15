@@ -6,13 +6,18 @@ echo
 echo ELEKTRA CHECK EXTERNAL CODEGEN ECONF
 echo
 
-if command -v pkg-config; then
-	if ! pkg-config elektra; then
-		echo "Elektra not installed, will skip"
+if command -v realpath; then
+	if command -v pkg-config; then
+		if ! pkg-config elektra; then
+			echo "Elektra not installed, will skip"
+			exit 0
+		fi
+	else
+		echo "pkg-config not installed, will skip"
 		exit 0
 	fi
 else
-	echo "pkg-config not installed, will skip"
+	echo "realpath is not installed, will skip"
 	exit 0
 fi
 
@@ -114,12 +119,12 @@ do_tests() {
 
 echo "Testing build with cmake"
 
-cd "$EXTERNAL_FOLDER"
+cd "$EXTERNAL_FOLDER" || exit
 mkdir build
-cd build
+cd build || exit
 
 # manually set Elektra_DIR and KDB to support non-standard install locations
-cmake ../cmake -DElektra_DIR:PATH="$(realpath $(dirname $0)/../../cmake/Elektra)" -DKDB:PATH="$KDB"
+cmake ../cmake -DElektra_DIR:PATH="$(realpath $(dirname "$0")/../../cmake/Elektra)" -DKDB:PATH="$KDB"
 succeed_if "could not run cmake"
 
 cmake --build .
@@ -133,7 +138,7 @@ rm -r build
 
 echo "Testing build with pkgconfig"
 
-cd "$EXTERNAL_FOLDER/pkgconfig"
+cd "$EXTERNAL_FOLDER/pkgconfig" || exit
 # set KDB to support non-standard install locations
 KDB="$KDB" make
 succeed_if "could not build pkgconfig project"

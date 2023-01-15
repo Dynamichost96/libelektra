@@ -13,6 +13,7 @@ RUN apt-get update && apt-get -y install \
         clang-7 \
         cmake \
         curl \
+    	dbus-x11 \
         debsigs \
         default-jdk \
         devscripts \
@@ -52,6 +53,7 @@ RUN apt-get update && apt-get -y install \
         libsystemd-dev \
         libuv1-dev \
         libxerces-c-dev \
+        libxfconf-0-dev \
         libyajl-dev \
         libyaml-cpp-dev \
         libzmq3-dev \
@@ -70,6 +72,7 @@ RUN apt-get update && apt-get -y install \
         reprepro \
         ruby \
         ruby-dev \
+        shellcheck \
         swig3.0 \
         systemd \
         tclcl-dev \
@@ -118,7 +121,7 @@ RUN useradd \
     jenkins
 
 # download and install gradle
-RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.4-bin.zip && unzip gradle-7.4-bin.zip && rm gradle-7.4-bin.zip && mv gradle-7.4 /opt/gradle
+RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.5.1-bin.zip && unzip gradle-7.5.1-bin.zip && rm gradle-7.5.1-bin.zip && mv gradle-7.5.1 /opt/gradle
 ENV PATH "${PATH}:/opt/gradle/bin"
 
 USER ${JENKINS_USERID}

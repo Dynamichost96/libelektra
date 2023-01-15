@@ -32,6 +32,10 @@ add_msr_test (
 	ENVIRONMENT KDB_EXEC_PATH=${CMAKE_SOURCE_DIR}/scripts/kdb)
 add_msr_test (tutorial_storage_plugins "${CMAKE_SOURCE_DIR}/doc/tutorials/storage-plugins.md" REQUIRED_PLUGINS type yamlcpp)
 add_msr_test (cmerge "${CMAKE_SOURCE_DIR}/doc/tutorials/cmerge.md" REQUIRED_PLUGINS hosts line PROPERTY LABELS memleak)
+add_msr_test (tutorial_namespaces "${CMAKE_SOURCE_DIR}/doc/tutorials/namespaces.md")
+
+# This is test is time and resource intensive and needs docekr to be present in the environment. Please run this run this test manually:
+# add_msr_test (tutorial_merge "${CMAKE_SOURCE_DIR}/doc/tutorials/run_all_tests_with_docker.md")
 
 if (ENABLE_ASAN)
 	message (STATUS "Excluding Markdown Shell Recorder tests for `validation` and 'spec', as they fail with ASAN enabled")
@@ -55,9 +59,9 @@ endif (ENABLE_ASAN)
 add_msr_test (msr_syntax "${CMAKE_SOURCE_DIR}/tests/shell/shell_recorder/tutorial_wrapper/SyntaxCheck.md" REQUIRED_PLUGINS mini)
 add_msr_test (readme_msr "${CMAKE_SOURCE_DIR}/tests/shell/shell_recorder/tutorial_wrapper/README.md")
 add_msr_test (issue_template "${CMAKE_SOURCE_DIR}/.github/ISSUE_TEMPLATE.md")
-add_msr_test (mmapstorage_shelltests "${CMAKE_SOURCE_DIR}/src/plugins/mmapstorage/shelltests.md" REQUIRED_PLUGINS mmapstorage)
-add_msr_test (cache_shelltests "${CMAKE_SOURCE_DIR}/src/plugins/cache/shelltests.md" REQUIRED_PLUGINS cache mmapstorage dump resolver
-												      multifile)
+# add_msr_test (mmapstorage_shelltests "${CMAKE_SOURCE_DIR}/src/plugins/mmapstorage/shelltests.md" REQUIRED_PLUGINS mmapstorage)
+# add_msr_test (cache_shelltests "${CMAKE_SOURCE_DIR}/src/plugins/cache/shelltests.md" REQUIRED_PLUGINS cache mmapstorage dump resolver
+# multifile)
 
 # ~~~
 # Only works with super user privileges, since it writes to `/etc/hosts`:

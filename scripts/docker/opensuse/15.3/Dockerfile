@@ -36,6 +36,7 @@ RUN zypper update -y && zypper install -y \
         libqt5-qtsvg-devel \
         libuv-devel \
         libxerces-c-devel \
+        libxfconf-devel \
         libxml2-devel \
         llvm \
         lua-devel \
@@ -93,7 +94,7 @@ RUN useradd \
     jenkins
 
 # download and install gradle
-RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.4-bin.zip && unzip gradle-7.4-bin.zip && rm gradle-7.4-bin.zip && mv gradle-7.4 /opt/gradle
+RUN cd /tmp && wget https://services.gradle.org/distributions/gradle-7.5.1-bin.zip && unzip gradle-7.5.1-bin.zip && rm gradle-7.5.1-bin.zip && mv gradle-7.5.1 /opt/gradle
 RUN alternatives --auto java && alternatives --auto javac
 ENV PATH="${PATH}:/opt/gradle/bin" \
     JAVA_HOME="/etc/alternatives/jre"
